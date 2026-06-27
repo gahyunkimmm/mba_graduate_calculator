@@ -22,27 +22,28 @@ SEMESTER_CONFIG = {
         {"label": "3학기 (봄)",    "req_keys": ["3학기(봄)"],               "season": None},
     ],
     "FMBA": [
-        {"label": "1학기 (봄)",    "req_keys": ["1학기(봄)"],               "season": None},
-        # FMBA 여름 필수과목(금융통계학·조직행동)을 한 섹션에 묶고, 선택과목도 동일 풀
-        {"label": "여름 계절학기", "req_keys": ["1학기(여름)", "3학기(여름)"], "season": "여름"},
-        {"label": "2학기 (가을)",  "req_keys": ["2학기(가을)"],              "season": None},
-        {"label": "겨울 계절학기", "req_keys": ["2학기(겨울)"],              "season": "겨울"},
-        {"label": "3학기 (봄)",    "req_keys": ["3학기(봄)"],               "season": None},
-        {"label": "4학기 (가을)",  "req_keys": ["4학기(가을)"],              "season": None},
+        {"label": "1학기 (봄)",          "req_keys": ["1학기(봄)"],   "season": None},
+        {"label": "1학기 여름 계절학기", "req_keys": ["1학기(여름)"], "season": "여름"},
+        {"label": "2학기 (가을)",        "req_keys": ["2학기(가을)"], "season": None},
+        {"label": "2학기 겨울 계절학기", "req_keys": ["2학기(겨울)"], "season": "겨울"},
+        {"label": "3학기 (봄)",          "req_keys": ["3학기(봄)"],   "season": None},
+        {"label": "3학기 여름 계절학기", "req_keys": ["3학기(여름)"], "season": "여름"},
+        {"label": "4학기 (가을)",        "req_keys": ["4학기(가을)"], "season": None},
+        {"label": "4학기 겨울 계절학기", "req_keys": ["4학기(겨울)"], "season": "겨울"},
     ],
 }
 
 
-# 봄/가을 학기 고정 리더십개발 과목
+# 봄/가을 학기 고정 리더십개발 과목 (각 과목 평생 1회만 수강 가능)
 LEADERSHIP_COURSES = [
     {"code": "LDR001", "name": "리더십개발: 제주도",    "credits": 1.5,
-     "is_leadership": True, "is_english": False, "kind": "선택",
+     "is_leadership": True, "is_english": False, "kind": "선택", "once": True,
      "cmba_track": None, "fmba_track": None, "note": ""},
     {"code": "LDR002", "name": "리더십개발: 백두대간I",  "credits": 1.5,
-     "is_leadership": True, "is_english": False, "kind": "선택",
+     "is_leadership": True, "is_english": False, "kind": "선택", "once": True,
      "cmba_track": None, "fmba_track": None, "note": ""},
     {"code": "LDR003", "name": "리더십개발: 백두대간II", "credits": 1.5,
-     "is_leadership": True, "is_english": False, "kind": "선택",
+     "is_leadership": True, "is_english": False, "kind": "선택", "once": True,
      "cmba_track": None, "fmba_track": None, "note": ""},
 ]
 
@@ -196,19 +197,37 @@ with st.sidebar:
         st.rerun()
 
 
-# ── 탭 ───────────────────────────────────────────────────────────────
-tab_plan, tab_report = st.tabs(["📋 학기별 이수계획", "📊 졸업진단 리포트"])
+# ── 화면 전환 (탭 대신 버튼으로 → 프로그램적 이동 가능) ────────────────
+if "view" not in st.session_state:
+    st.session_state.view = "plan"
+
+nav1, nav2 = st.columns(2)
+with nav1:
+    if st.button("📋 학기별 이수계획", use_container_width=True,
+                 type="primary" if st.session_state.view == "plan" else "secondary"):
+        st.session_state.view = "plan"
+        st.rerun()
+with nav2:
+    if st.button("📊 졸업진단 리포트", use_container_width=True,
+                 type="primary" if st.session_state.view == "report" else "secondary"):
+        st.session_state.view = "report"
+        st.rerun()
+st.markdown("---")
 
 
 # ────────────────────────────────────────────────────────────────────
-# 탭 1: 학기별 이수계획
+# 화면 1: 학기별 이수계획
 # ────────────────────────────────────────────────────────────────────
-with tab_plan:
+if st.session_state.view == "plan":
     st.markdown(f"### {program} 학기별 이수계획")
     st.caption("각 학기를 펼쳐 필수과목과 계절학기 선택과목을 함께 확인하고 이수 여부를 체크하세요.")
 
     # 해당 과정의 필수과목 코드 집합 — 계절학기 선택과목에서 중복 제외
     req_set = {c["code"] for c in MASTER["required"][program]}
+
+    # 선택과목(계절) 코드는 페이지 전체에서 1회만 렌더 → 위젯 키 충돌/중복 카운트 방지
+    # (같은 계절 반복, 여름↔겨울 공통 개설과목 모두 한 곳에서만 표시)
+    rendered_codes: set = set()
 
     for sem_idx, sem_cfg in enumerate(SEMESTER_CONFIG[program]):
         sem_label = sem_cfg["label"]
@@ -220,31 +239,49 @@ with tab_plan:
 
         # 이 학기의 선택과목
         sem_elec: list = []
+        season_elec_deferred = False
         if season:
-            sem_elec = [c for code, c in SEASONAL_ELEC[season].items()
-                        if code not in req_set]
-            if season == "여름":
-                sem_elec.append(CKJ_COURSE)
+            pool = [c for code, c in SEASONAL_ELEC[season].items()
+                    if code not in req_set and code not in rendered_codes]
+            if season == "여름" and CKJ_COURSE["code"] not in rendered_codes:
+                pool.append(CKJ_COURSE)
+            if pool:
+                sem_elec = pool
+                for c in pool:
+                    rendered_codes.add(c["code"])
+            else:
+                # 동일 과목들이 앞 계절학기에서 이미 표시됨 → 안내만
+                season_elec_deferred = True
         else:
-            # 봄/가을: 리더십개발 과목 추가 (학기 인덱스를 코드에 붙여 위젯 키 중복 방지)
-            sem_elec = [{**lc, "code": f"{lc['code']}_s{sem_idx}"} for lc in LEADERSHIP_COURSES]
+            # 봄/가을: 리더십개발 과목 (평생 1회 → 담은 학기를 sem_idx로 기록)
+            sem_elec = [{**lc, "sem_idx": sem_idx} for lc in LEADERSHIP_COURSES]
 
-        if not sem_req and not sem_elec:
+        if not sem_req and not sem_elec and not season:
             continue
+
+        # 이 섹션에 '속한' 과목인지 (평생 1회 과목은 담은 학기에서만 카운트)
+        def _here(c, _idx=sem_idx):
+            rec = taken.get(c["code"])
+            if rec is None:
+                return False
+            if c.get("once"):
+                return rec.get("sem_idx") == _idx
+            return True
 
         # 익스팬더 제목: 체크 현황
         checked_req   = sum(1 for c in sem_req  if c["code"] in taken)
-        checked_elec  = sum(1 for c in sem_elec if c["code"] in taken)
+        checked_elec  = sum(1 for c in sem_elec if _here(c))
         credits_done  = (sum(taken[c["code"]]["credits"] for c in sem_req  if c["code"] in taken)
-                       + sum(taken[c["code"]]["credits"] for c in sem_elec if c["code"] in taken))
+                       + sum(taken[c["code"]]["credits"] for c in sem_elec if _here(c)))
         elec_suffix   = f" + 선택 {checked_elec}과목" if sem_elec else ""
         exp_title     = (f"{sem_label}　｜　"
                          f"필수 {checked_req}/{len(sem_req)}{elec_suffix}　"
                          f"· {credits_done:g}학점")
 
-        # 봄/가을 정규학기는 기본 펼침
-        is_default_open = season is None
-        with st.expander(exp_title, expanded=is_default_open):
+        # 모든 학기 기본 펼침 (선택 시에도 닫히지 않게)
+        with st.expander(exp_title, expanded=True):
+            if season_elec_deferred:
+                st.caption("ℹ️ 선택과목은 앞선 동일 계절학기 목록에서 함께 선택하세요.")
 
             # ── 필수과목 ─────────────────────────────────────────────
             if sem_req:
@@ -297,31 +334,46 @@ with tab_plan:
                 for tr_label in track_order:
                     if tr_label not in buckets:
                         continue
-                    cnt_taken = sum(1 for c in buckets[tr_label] if c["code"] in taken)
+                    cnt_taken = sum(1 for c in buckets[tr_label] if _here(c))
                     hdr = f"**{tr_label}** ({cnt_taken}/{len(buckets[tr_label])}과목)"
                     st.markdown(hdr)
 
                     for c in buckets[tr_label]:
-                        code    = c["code"]
-                        # 계절학기는 시즌 prefix로 겨울↔여름 중복 코드 충돌 방지
-                        # 봄/가을은 리더십 코드가 이미 _s{idx} suffix를 가짐
-                        key_pfx = f"{season}_" if season else ""
-                        chk_key = f"elec_{key_pfx}{code}"
+                        code = c["code"]
+                        once = c.get("once")
+                        rec  = taken.get(code)
+                        # 평생 1회 과목(리더십)을 다른 학기에서 이미 담음 → 잠금
+                        locked = bool(once and rec is not None
+                                      and rec.get("sem_idx") != sem_idx)
+                        # 위젯 키: 계절학기는 풀이 1번만 렌더되므로 코드만,
+                        #          리더십은 학기마다 나오므로 sem_idx 포함
+                        chk_key = f"lead_s{sem_idx}_{code}" if once else f"elec_{code}"
 
                         col_chk, col_info = st.columns([0.5, 9.5])
                         with col_chk:
-                            checked = st.checkbox("", value=code in taken, key=chk_key,
-                                                  label_visibility="collapsed")
+                            checked = st.checkbox(
+                                "", value=_here(c), key=chk_key, disabled=locked,
+                                label_visibility="collapsed",
+                            )
                         with col_info:
                             bgs = render_badges(c, program)
                             note_html = (f"　<span style='color:#888;font-size:0.76rem'>{c['note']}</span>"
                                          if c.get("note") else "")
+                            lock_html = ""
+                            if locked:
+                                tk_label = SEMESTER_CONFIG[program][rec["sem_idx"]]["label"]
+                                lock_html = (f"　<span style='color:#c0392b;font-size:0.74rem'>"
+                                             f"🔒 {tk_label}에 이미 수강</span>")
+                            code_html = ("" if once
+                                         else f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>")
                             st.markdown(
-                                f"**{c['name']}** {bgs}"
-                                f"　`{c['credits']}학점`　<span style='color:#aaa;font-size:0.78rem'>{code}</span>"
-                                f"{note_html}",
+                                f"**{c['name']}** {bgs}　`{c['credits']}학점`"
+                                f"{code_html}{note_html}{lock_html}",
                                 unsafe_allow_html=True,
                             )
+
+                        if locked:
+                            continue  # 다른 학기 소유 → 이 섹션에서 변경 금지
 
                         # 영어+리더십 동시 해당 → 인정 항목 선택
                         count_as = None
@@ -329,7 +381,7 @@ with tab_plan:
                             count_as = st.radio(
                                 "인정 항목 (하나만 선택)",
                                 ["영어강의", "리더십개발"],
-                                horizontal=True, key=f"as_{key_pfx}{code}",
+                                horizontal=True, key=f"as_s{sem_idx}_{code}",
                             )
 
                         if checked:
@@ -340,17 +392,25 @@ with tab_plan:
                                 ld  = (count_as == "리더십개발")
                             set_course(code, name=c["name"], credits=c["credits"],
                                        kind="선택", is_english=eng, is_leadership=ld,
+                                       once=bool(once), sem_idx=sem_idx,
                                        cmba_track=c.get("cmba_track"),
                                        fmba_track=c.get("fmba_track"))
                         else:
                             if taken.get(code, {}).get("kind") == "선택":
                                 drop_course(code)
 
+    # ── 입력 완료 → 리포트 이동 버튼 ──────────────────────────────────
+    st.markdown("---")
+    if st.button("✅ 입력 완료 · 졸업진단 리포트 보기 →",
+                 type="primary", use_container_width=True):
+        st.session_state.view = "report"
+        st.rerun()
+
 
 # ────────────────────────────────────────────────────────────────────
-# 탭 2: 졸업진단 리포트
+# 화면 2: 졸업진단 리포트
 # ────────────────────────────────────────────────────────────────────
-with tab_report:
+if st.session_state.view == "report":
     st.markdown(f"### 📊 {program} 졸업요건 진단")
 
     total_r   = sum(v["credits"] for v in taken.values())
