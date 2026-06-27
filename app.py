@@ -33,6 +33,28 @@ SEMESTER_CONFIG = {
 }
 
 
+# 봄/가을 학기 고정 리더십개발 과목
+LEADERSHIP_COURSES = [
+    {"code": "LDR001", "name": "리더십개발: 제주도",    "credits": 1.5,
+     "is_leadership": True, "is_english": False, "kind": "선택",
+     "cmba_track": None, "fmba_track": None, "note": ""},
+    {"code": "LDR002", "name": "리더십개발: 백두대간I",  "credits": 1.5,
+     "is_leadership": True, "is_english": False, "kind": "선택",
+     "cmba_track": None, "fmba_track": None, "note": ""},
+    {"code": "LDR003", "name": "리더십개발: 백두대간II", "credits": 1.5,
+     "is_leadership": True, "is_english": False, "kind": "선택",
+     "cmba_track": None, "fmba_track": None, "note": ""},
+]
+
+# 여름학기 CKJ 과목 (계절학기 최대학점 별개)
+CKJ_COURSE = {
+    "code": "CKJ001", "name": "CKJ Asia Business Field Study", "credits": 3.0,
+    "is_leadership": False, "is_english": True, "kind": "선택",
+    "cmba_track": None, "fmba_track": None,
+    "note": "계절학기 최대 수강학점과 별개",
+}
+
+
 @st.cache_data
 def load_data():
     with open(os.path.join(DATA_DIR, "master.json"), encoding="utf-8") as fp:
@@ -46,7 +68,7 @@ st.set_page_config(
     page_title="연세 MBA 졸업이수 시뮬레이터",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
@@ -196,11 +218,16 @@ with tab_plan:
         # 이 학기의 필수과목
         sem_req = [c for c in MASTER["required"][program] if c["semester"] in req_keys]
 
-        # 이 학기의 선택과목 (계절학기만, 필수 코드 제외)
+        # 이 학기의 선택과목
         sem_elec: list = []
         if season:
             sem_elec = [c for code, c in SEASONAL_ELEC[season].items()
                         if code not in req_set]
+            if season == "여름":
+                sem_elec.append(CKJ_COURSE)
+        else:
+            # 봄/가을: 리더십개발 과목 추가
+            sem_elec = list(LEADERSHIP_COURSES)
 
         if not sem_req and not sem_elec:
             continue
@@ -231,11 +258,10 @@ with tab_plan:
                                               label_visibility="collapsed")
                     with col_info:
                         st.markdown(
-                            f"**{c['name']}**　`{c['credits']}학점`"
-                            f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>",
+                            f"**{c['name']}** {badge('필수', 'badge-req')}"
+                            f"　`{c['credits']}학점`　<span style='color:#aaa;font-size:0.78rem'>{code}</span>",
                             unsafe_allow_html=True,
                         )
-                        st.markdown(badge("필수", "badge-req"), unsafe_allow_html=True)
 
                     if checked:
                         set_course(code, name=c["name"], credits=c["credits"],
@@ -247,7 +273,10 @@ with tab_plan:
             # ── 선택과목 (계절학기만) ────────────────────────────────
             if sem_elec:
                 st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
-                st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목 (연도별 합산)")
+                if season:
+                    st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목 (연도별 합산)")
+                else:
+                    st.caption(f"{len(sem_elec)}과목")
 
                 # 트랙별 분류
                 buckets: dict = {}
@@ -281,16 +310,15 @@ with tab_plan:
                             checked = st.checkbox("", value=code in taken, key=chk_key,
                                                   label_visibility="collapsed")
                         with col_info:
+                            bgs = render_badges(c, program)
+                            note_html = (f"　<span style='color:#888;font-size:0.76rem'>{c['note']}</span>"
+                                         if c.get("note") else "")
                             st.markdown(
-                                f"**{c['name']}**　`{c['credits']}학점`"
-                                f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>",
+                                f"**{c['name']}** {bgs}"
+                                f"　`{c['credits']}학점`　<span style='color:#aaa;font-size:0.78rem'>{code}</span>"
+                                f"{note_html}",
                                 unsafe_allow_html=True,
                             )
-                            bgs = render_badges(c, program)
-                            if bgs:
-                                st.markdown(bgs, unsafe_allow_html=True)
-                            if c.get("note"):
-                                st.caption(f"ℹ️ {c['note']}")
 
                         # 영어+리더십 동시 해당 → 인정 항목 선택
                         count_as = None
