@@ -1,25 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 연세대 CFMBA 졸업이수 시뮬레이터
---------------------------------
-데이터(필수/심화/개설과목)는 data/*.json 에서 로드합니다.
-원천 데이터가 바뀌면 `python build_data.py` 로 JSON을 다시 생성하세요.
+데이터: data/master.json, data/offerings.json (build_data.py로 생성)
 """
 import json
 import os
-
 import streamlit as st
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
-
-GRADE_GPAS = {
-    "A+": 4.3, "A0": 4.0, "A-": 3.7,
-    "B+": 3.3, "B0": 3.0, "B-": 2.7,
-    "C+": 2.3, "C0": 2.0, "C-": 1.7,
-    "F": 0.0, "P": None,  # P/NP 는 평점 계산 제외
-}
-GRADE_OPTIONS = list(GRADE_GPAS.keys())
 
 
 @st.cache_data
@@ -31,310 +20,380 @@ def load_data():
     return master, offerings
 
 
-st.set_page_config(page_title="연세대 MBA 졸업이수 시뮬레이터", layout="wide")
+st.set_page_config(
+    page_title="연세 MBA 졸업이수 시뮬레이터",
+    page_icon="🎓",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── 커스텀 CSS ────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+/* 카드형 과목 행 */
+.course-row { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+/* 태그 뱃지 */
+.badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-right: 4px;
+}
+.badge-eng  { background:#e8f4fd; color:#1a6fa8; }
+.badge-ld   { background:#fdf3e8; color:#b05a00; }
+.badge-conc { background:#edf7ed; color:#1e6e1e; }
+.badge-req  { background:#fdecea; color:#a01010; }
+/* 진도 라벨 */
+.prog-label { font-size: 0.82rem; color: #555; margin-bottom: 2px; }
+/* 섹션 헤더 */
+.section-title {
+    font-size: 1rem; font-weight: 700;
+    color: #333; margin: 16px 0 6px;
+    padding-left: 8px;
+    border-left: 4px solid #4C72FF;
+}
+</style>
+""", unsafe_allow_html=True)
 
 try:
     MASTER, OFFERINGS = load_data()
 except FileNotFoundError:
-    st.error("데이터 파일이 없습니다. 먼저 터미널에서 `python build_data.py` 를 실행하세요.")
+    st.error("⚠️ 데이터 파일이 없습니다. 터미널에서 `python build_data.py`를 실행하세요.")
     st.stop()
 
-# ── 세션 상태: 선택한 과목 {code: {...}} ──────────────────────────────
+# ── 세션 상태 ─────────────────────────────────────────────────────────
 if "taken" not in st.session_state:
-    st.session_state.taken = {}   # code -> dict(name, credits, grade, is_english, is_leadership, count_as)
-
-taken = st.session_state.taken
+    st.session_state.taken = {}  # code -> {name, credits, kind, is_english, is_leadership, cmba_track, fmba_track}
 
 
 def set_course(code, **fields):
-    rec = taken.get(code, {})
+    rec = st.session_state.taken.get(code, {})
     rec.update(fields)
-    taken[code] = rec
+    st.session_state.taken[code] = rec
 
 
 def drop_course(code):
-    taken.pop(code, None)
+    st.session_state.taken.pop(code, None)
 
 
-# ── 사이드바: 학생 설정 ──────────────────────────────────────────────
-st.sidebar.header("👤 학생 정보")
-program = st.sidebar.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True)
-rules = MASTER["graduation_rules"][program]
+taken = st.session_state.taken
 
-st.sidebar.markdown("---")
-if st.sidebar.button("🗑️ 선택 전체 초기화"):
-    st.session_state.taken = {}
-    st.rerun()
+# ── 사이드바: 과정 선택 + 실시간 요건 현황 ───────────────────────────
+with st.sidebar:
+    st.markdown("## 🎓 졸업이수 시뮬레이터")
+    program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True, label_visibility="collapsed")
+    rules = MASTER["graduation_rules"][program]
+    st.markdown(f"**{program}** 과정")
 
-st.title("🎓 연세대 CFMBA 졸업이수 시뮬레이터")
-st.caption("필수과목 이수 현황을 체크하고, 계절학기 개설과목을 골라 담으면 "
-           "졸업요건과 심화과정 충족 여부를 실시간으로 계산합니다.")
+    st.markdown("---")
 
+    # 실시간 집계
+    total = sum(v["credits"] for v in taken.values())
+    req_list = MASTER["required"][program]
+    missing_req = [c for c in req_list if c["code"] not in taken]
+    english = sum(v["credits"] for v in taken.values() if v.get("is_english"))
+    leadership = sum(v["credits"] for v in taken.values() if v.get("is_leadership"))
+
+    def pct(cur, goal):
+        return min(int(cur / goal * 100), 100)
+
+    def status_icon(ok):
+        return "✅" if ok else "🔲"
+
+    # 총 학점 프로그레스
+    st.markdown(f'<div class="prog-label">총 이수학점 {total:g} / {rules["total_credits"]:g}</div>',
+                unsafe_allow_html=True)
+    st.progress(pct(total, rules["total_credits"]))
+
+    st.markdown("---")
+    st.markdown("**졸업요건 체크리스트**")
+
+    req_ok = len(missing_req) == 0
+    eng_ok = english >= rules["english_credits"]
+    ld_ok  = leadership >= rules["leadership_credits"]
+
+    st.markdown(f"{status_icon(req_ok)} 필수과목 {len(req_list)-len(missing_req)}/{len(req_list)}과목")
+    if missing_req:
+        with st.expander("미이수 필수과목"):
+            for c in missing_req:
+                st.caption(f"- {c['name']}")
+
+    st.markdown(f"{status_icon(eng_ok)} 영어강의 {english:g} / {rules['english_credits']:g}학점")
+    st.markdown(f"{status_icon(ld_ok)} 리더십개발 {leadership:g} / {rules['leadership_credits']:g}학점")
+
+    # 심화과정 미니 현황
+    st.markdown("---")
+    st.markdown("**심화과정(Concentration)**")
+    if program == "CMBA":
+        idx = MASTER["concentration_index"]["CMBA"]
+        conc = {}
+        for code, v in taken.items():
+            for tr in idx.get(code, []):
+                conc[tr] = conc.get(tr, 0.0) + v["credits"]
+        for tr in ["마케팅", "매니지먼트", "재무"]:
+            cr = conc.get(tr, 0.0)
+            ok = cr >= rules["concentration_credits"]
+            st.markdown(f"{status_icon(ok)} {tr} {cr:g} / {rules['concentration_credits']:g}학점")
+    else:
+        idx = MASTER["concentration_index"]["FMBA"]
+        sums = {"금융공학": 0.0, "자산운용/투자은행": 0.0, "공통트랙": 0.0}
+        for code, v in taken.items():
+            for tr in idx.get(code, []):
+                sums[tr] += v["credits"]
+        for tr, cr in sums.items():
+            st.caption(f"{tr}: {cr:g}학점")
+
+    st.markdown("---")
+    if st.button("🗑️ 전체 초기화", use_container_width=True):
+        st.session_state.taken = {}
+        st.rerun()
+
+# ── 메인 탭 ──────────────────────────────────────────────────────────
 tab_req, tab_season, tab_report = st.tabs(
-    ["① 필수과목", "② 계절학기 과목 담기", "③ 졸업진단 리포트"]
+    ["📋 필수과목", "🗓️ 계절학기 과목", "📊 졸업진단 리포트"]
 )
 
-# ──────────────────────────────────────────────────────────────────────
-# ① 필수과목 이수 현황
-# ──────────────────────────────────────────────────────────────────────
-with tab_req:
-    st.subheader(f"{program} 필수과목 이수 현황")
-    st.caption("이수한 필수과목을 체크하고 성적을 입력하세요. (재수강은 동일 학정번호 기준)")
-    for c in MASTER["required"][program]:
-        code = c["code"]
-        col1, col2, col3 = st.columns([5, 1.2, 1.5])
-        with col1:
-            checked = st.checkbox(
-                f"**{code}**　{c['name']}　`{c['credits']}학점`　_{c['semester']}_",
-                value=code in taken,
-                key=f"req_{program}_{code}",
-            )
-        if checked:
-            with col3:
-                grade = st.selectbox(
-                    "성적", GRADE_OPTIONS,
-                    index=GRADE_OPTIONS.index(taken.get(code, {}).get("grade", "A0")),
-                    key=f"reqgrade_{program}_{code}", label_visibility="collapsed",
-                )
-            set_course(code, name=c["name"], credits=c["credits"], grade=grade,
-                       kind="필수", is_english=False, is_leadership=False, count_as=None)
-        else:
-            # 이 과정 필수로 담겼던 것만 해제 (선택과목 보존)
-            if taken.get(code, {}).get("kind") == "필수":
-                drop_course(code)
 
-# ──────────────────────────────────────────────────────────────────────
-# ② 계절학기 개설과목 (실제 시간표 기준 자동 분류)
-# ──────────────────────────────────────────────────────────────────────
-def track_of(course, program):
-    """해당 과정 기준 이 과목의 심화 트랙명."""
-    if program == "CMBA":
-        return course.get("cmba_track")
-    return course.get("fmba_track")
+# ── 헬퍼 ─────────────────────────────────────────────────────────────
+def badge(text, cls):
+    return f'<span class="badge {cls}">{text}</span>'
 
 
-def categorize(courses, program):
-    """개설과목을 분류 버킷으로 묶는다."""
-    buckets = {}  # 라벨 -> list
-    def add(label, c):
-        buckets.setdefault(label, []).append(c)
+def track_of(course, prog):
+    return course.get("cmba_track") if prog == "CMBA" else course.get("fmba_track")
 
+
+def categorize(courses, prog):
+    buckets = {}
     for c in courses:
         if c["kind"] == "필수":
-            # 내 과정 필수 또는 공통 필수만
-            if c["target"] in (program, "CFMBA", "공통"):
-                add("📌 필수과목", c)
+            if c["target"] in (prog, "CFMBA", "공통"):
+                buckets.setdefault("📌 필수과목", []).append(c)
             continue
-        tr = track_of(c, program)
+        tr = track_of(c, prog)
         if tr:
-            add(f"🎯 심화 · {tr}", c)
+            buckets.setdefault(f"🎯 심화 · {tr}", []).append(c)
         elif c["is_leadership"] or c["is_english"]:
-            add("🌐 영어 / 리더십개발", c)
+            buckets.setdefault("🌐 영어 / 리더십개발", []).append(c)
         else:
-            add("➕ 기타 선택", c)
+            buckets.setdefault("➕ 기타 선택", []).append(c)
     return buckets
 
 
+# ──────────────────────────────────────────────────────────────────────
+# 탭 ①: 필수과목
+# ──────────────────────────────────────────────────────────────────────
+with tab_req:
+    st.markdown(f"### {program} 필수과목 이수 현황")
+    st.caption("이수 완료한 과목에 체크하세요. 사이드바에서 진도가 실시간으로 갱신됩니다.")
+
+    # 학기별로 그룹핑
+    by_sem = {}
+    for c in MASTER["required"][program]:
+        by_sem.setdefault(c["semester"], []).append(c)
+
+    for sem, courses in by_sem.items():
+        st.markdown(f'<div class="section-title">{sem}</div>', unsafe_allow_html=True)
+        for c in courses:
+            code = c["code"]
+            col_chk, col_info = st.columns([0.5, 9.5])
+            with col_chk:
+                checked = st.checkbox("", value=code in taken, key=f"req_{program}_{code}",
+                                      label_visibility="collapsed")
+            with col_info:
+                label = f"**{c['name']}**　`{c['credits']}학점`　<span style='color:#888;font-size:0.82rem'>{code}</span>"
+                st.markdown(label, unsafe_allow_html=True)
+
+            if checked:
+                set_course(code, name=c["name"], credits=c["credits"],
+                           kind="필수", is_english=False, is_leadership=False)
+            else:
+                if taken.get(code, {}).get("kind") == "필수":
+                    drop_course(code)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 탭 ②: 계절학기
+# ──────────────────────────────────────────────────────────────────────
 with tab_season:
-    st.subheader("계절학기 개설과목")
     terms = list(OFFERINGS.keys())
-    term = st.selectbox("학기 선택", terms, index=len(terms) - 1)
+    cols_top = st.columns([3, 7])
+    with cols_top[0]:
+        term = st.selectbox("학기", terms, index=len(terms) - 1, label_visibility="collapsed")
     info = OFFERINGS[term]
-    badge = "계절학기" if info["seasonal"] else "정규학기"
-    st.caption(f"`{badge}` · 출처: {info['source_file']} · 총 {len(info['courses'])}과목 개설")
+    with cols_top[1]:
+        st.caption(f"📂 {info['source_file']} · 총 **{len(info['courses'])}과목** 개설")
 
     buckets = categorize(info["courses"], program)
-    # 보기 좋은 순서
-    order = ["📌 필수과목"] \
-        + sorted([k for k in buckets if k.startswith("🎯")]) \
-        + ["🌐 영어 / 리더십개발", "➕ 기타 선택"]
+    order = (["📌 필수과목"]
+             + sorted(k for k in buckets if k.startswith("🎯"))
+             + ["🌐 영어 / 리더십개발", "➕ 기타 선택"])
 
     for label in order:
         if label not in buckets:
             continue
         with st.expander(f"{label}  ({len(buckets[label])}과목)",
-                         expanded=label.startswith("🎯") or label == "📌 필수과목"):
+                         expanded="필수" in label or "심화" in label):
             for c in buckets[label]:
                 code = c["code"]
-                tags = []
-                if c["is_english"]:
-                    tags.append("🔤영어")
-                if c["is_leadership"]:
-                    tags.append("🎒리더십")
                 ctr, ftr = c.get("cmba_track"), c.get("fmba_track")
-                if program == "CMBA" and ctr:
-                    tags.append(f"C심화:{ctr}")
-                if program == "FMBA" and ftr:
-                    tags.append(f"F심화:{ftr}")
                 mod = "·".join(c["modules"]) if c["modules"] else ""
-                tagstr = "　".join(tags)
 
-                col1, col2 = st.columns([5, 1.6])
-                with col1:
-                    checked = st.checkbox(
-                        f"**{code}**　{c['name']}　`{c['credits']}학점`"
-                        + (f"　[{mod}]" if mod else ""),
-                        value=code in taken,
-                        key=f"off_{term}_{code}",
-                    )
-                    if tagstr:
-                        st.caption("　" + tagstr + (f"　— {c['note']}" if c["note"] else ""))
-                    elif c["note"]:
-                        st.caption("　— " + c["note"])
+                col_chk, col_info = st.columns([0.5, 9.5])
+                with col_chk:
+                    checked = st.checkbox("", value=code in taken,
+                                          key=f"off_{term}_{code}",
+                                          label_visibility="collapsed")
+                with col_info:
+                    # 과목명 + 학점 + 모듈
+                    name_line = f"**{c['name']}**　`{c['credits']}학점`"
+                    if mod:
+                        name_line += f"　<span style='color:#888;font-size:0.8rem'>[{mod}]</span>"
+                    st.markdown(name_line + f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>",
+                                unsafe_allow_html=True)
 
-                # 영어/리더십 동시 인정 과목 → 둘 중 하나만 선택
+                    # 뱃지 행
+                    badges = ""
+                    if c["is_english"]:
+                        badges += badge("영어강의", "badge-eng")
+                    if c["is_leadership"]:
+                        badges += badge("리더십개발", "badge-ld")
+                    if program == "CMBA" and ctr:
+                        badges += badge(f"심화:{ctr}", "badge-conc")
+                    if program == "FMBA" and ftr:
+                        badges += badge(f"심화:{ftr}", "badge-conc")
+                    if badges:
+                        st.markdown(badges, unsafe_allow_html=True)
+                    if c["note"]:
+                        st.caption(f"ℹ️ {c['note']}")
+
+                # 영어+리더십 동시 해당 → 인정 항목 선택
                 count_as = None
                 if checked and c["is_english"] and c["is_leadership"]:
-                    with col1:
-                        count_as = st.radio(
-                            "이 과목 인정 항목 (둘 중 하나만)",
-                            ["영어", "리더십개발"],
-                            horizontal=True, key=f"as_{term}_{code}",
-                        )
+                    count_as = st.radio(
+                        "이 과목을 어느 항목으로 인정할까요?",
+                        ["영어강의", "리더십개발"],
+                        horizontal=True, key=f"as_{term}_{code}",
+                    )
 
                 if checked:
-                    with col2:
-                        grade = st.selectbox(
-                            "성적", GRADE_OPTIONS,
-                            index=GRADE_OPTIONS.index(taken.get(code, {}).get("grade", "P")),
-                            key=f"offgrade_{term}_{code}", label_visibility="collapsed",
-                        )
                     eng = c["is_english"]
-                    ld = c["is_leadership"]
+                    ld  = c["is_leadership"]
                     if c["is_english"] and c["is_leadership"]:
-                        eng = (count_as == "영어")
-                        ld = (count_as == "리더십개발")
-                    set_course(code, name=c["name"], credits=c["credits"], grade=grade,
+                        eng = (count_as == "영어강의")
+                        ld  = (count_as == "리더십개발")
+                    set_course(code, name=c["name"], credits=c["credits"],
                                kind=c["kind"], is_english=eng, is_leadership=ld,
-                               cmba_track=ctr, fmba_track=ftr, count_as=count_as)
+                               cmba_track=ctr, fmba_track=ftr)
                 else:
                     if taken.get(code, {}).get("kind") != "필수":
                         drop_course(code)
 
+
 # ──────────────────────────────────────────────────────────────────────
-# 졸업진단 계산
+# 탭 ③: 졸업진단 리포트
 # ──────────────────────────────────────────────────────────────────────
-def credits_of(code):
-    return MASTER["course_credits"].get(code, taken.get(code, {}).get("credits", 1.5))
+with tab_report:
+    st.markdown(f"### 📊 {program} 졸업요건 진단")
 
+    total_r   = sum(v["credits"] for v in taken.values())
+    req_list  = MASTER["required"][program]
+    missing_r = [c for c in req_list if c["code"] not in taken]
+    english_r = sum(v["credits"] for v in taken.values() if v.get("is_english"))
+    ld_r      = sum(v["credits"] for v in taken.values() if v.get("is_leadership"))
 
-def diagnose():
-    items = taken
-    total = sum(v["credits"] for v in items.values())
+    # 요약 지표 카드
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("총 이수학점", f"{total_r:g}", f"목표 {rules['total_credits']:g}학점")
+    m2.metric("필수 미이수", f"{len(missing_r)}과목",
+              f"{len(req_list)-len(missing_r)}/{len(req_list)} 완료")
+    m3.metric("영어강의", f"{english_r:g}학점", f"기준 {rules['english_credits']:g}학점")
+    m4.metric("리더십개발", f"{ld_r:g}학점", f"기준 {rules['leadership_credits']:g}학점")
 
-    # 필수
-    req_codes = [c["code"] for c in MASTER["required"][program]]
-    done_req = [c for c in req_codes if c in items]
-    missing_req = [c for c in MASTER["required"][program] if c["code"] not in items]
-    req_credits = sum(items[c]["credits"] for c in done_req)
+    st.markdown("---")
 
-    # GPA (P 제외, F 포함)
-    gpa_num = gpa_den = 0.0
-    for v in items.values():
-        g = GRADE_GPAS.get(v["grade"])
-        if g is None:
-            continue
-        gpa_num += g * v["credits"]
-        gpa_den += v["credits"]
-    gpa = gpa_num / gpa_den if gpa_den else 0.0
+    # 요건별 상세
+    def req_row(ok, label, detail=""):
+        icon = "✅" if ok else "❌"
+        color = "#1a7a1a" if ok else "#c0392b"
+        bg = "#f0faf0" if ok else "#fdf0f0"
+        st.markdown(
+            f'<div style="background:{bg};border-radius:8px;padding:10px 14px;margin:6px 0;">'
+            f'<span style="font-size:1.1rem">{icon}</span> '
+            f'<span style="font-weight:600;color:{color}">{label}</span>'
+            + (f'<span style="color:#666;font-size:0.85rem;margin-left:8px">{detail}</span>' if detail else "")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
 
-    english = sum(v["credits"] for v in items.values() if v.get("is_english"))
-    leadership = sum(v["credits"] for v in items.values() if v.get("is_leadership"))
+    req_row(total_r >= rules["total_credits"],
+            f"총 이수학점 {total_r:g} / {rules['total_credits']:g}학점")
+    req_row(len(missing_r) == 0,
+            f"필수과목 {len(req_list)-len(missing_r)}/{len(req_list)}과목 이수",
+            ("미이수: " + ", ".join(c["name"] for c in missing_r)) if missing_r else "")
+    req_row(english_r >= rules["english_credits"],
+            f"영어강의 {english_r:g} / {rules['english_credits']:g}학점")
+    req_row(ld_r >= rules["leadership_credits"],
+            f"리더십개발 {ld_r:g} / {rules['leadership_credits']:g}학점")
 
-    # 심화과정
-    conc = {}
+    st.markdown("---")
+    st.markdown("### 🎯 심화과정(Concentration)")
+
     if program == "CMBA":
         idx = MASTER["concentration_index"]["CMBA"]
-        for code, v in items.items():
+        conc = {}
+        for code, v in taken.items():
             for tr in idx.get(code, []):
                 conc[tr] = conc.get(tr, 0.0) + v["credits"]
+        for tr in ["마케팅", "매니지먼트", "재무"]:
+            cr = conc.get(tr, 0.0)
+            ok = cr >= rules["concentration_credits"]
+            pv = min(int(cr / rules["concentration_credits"] * 100), 100)
+            label = f"{'🏆 ' if ok else ''}{tr}　{cr:g} / {rules['concentration_credits']:g}학점"
+            st.markdown(f'<div class="prog-label">{label}</div>', unsafe_allow_html=True)
+            st.progress(pv)
     else:
         idx = MASTER["concentration_index"]["FMBA"]
         sums = {"금융공학": 0.0, "자산운용/투자은행": 0.0, "공통트랙": 0.0}
-        for code, v in items.items():
+        for code, v in taken.items():
             for tr in idx.get(code, []):
                 sums[tr] += v["credits"]
-        conc = sums
+        for tr, cr in sums.items():
+            pv = min(int(cr / rules["concentration_credits"] * 100), 100)
+            st.markdown(f'<div class="prog-label">{tr}　{cr:g}학점</div>', unsafe_allow_html=True)
+            st.progress(pv)
 
-    return dict(total=total, missing_req=missing_req, req_credits=req_credits,
-                gpa=gpa, english=english, leadership=leadership, conc=conc)
-
-
-def fmba_concentration_status(s):
-    """FMBA 심화 인정 규칙 적용 → (인정 트랙 리스트, 설명)"""
-    fe, ib, common = s["금융공학"], s["자산운용/투자은행"], s["공통트랙"]
-    achieved = []
-    if fe >= 9.0:
-        achieved.append(f"금융공학 ({fe}학점)")
-    elif fe + common >= 9.0 and fe > 0:
-        achieved.append(f"금융공학+공통트랙 ({fe + common}학점)")
-    if ib + common >= 9.0 and ib > 0:
-        achieved.append(f"자산운용/투자은행+공통트랙 ({ib + common}학점)")
-    return achieved
-
-
-# ──────────────────────────────────────────────────────────────────────
-# ③ 졸업진단 리포트
-# ──────────────────────────────────────────────────────────────────────
-with tab_report:
-    d = diagnose()
-    st.subheader(f"📊 {program} 졸업요건 진단")
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("총 이수학점", f"{d['total']:g}", f"기준 {rules['total_credits']:g}")
-    c2.metric("평량평균(GPA)", f"{d['gpa']:.2f}", f"기준 {rules['min_gpa']}")
-    c3.metric("필수 미이수", f"{len(d['missing_req'])}과목")
-
-    def line(ok, text):
-        (st.success if ok else st.error)(text)
-
-    line(d["total"] >= rules["total_credits"],
-         f"총 이수학점 {d['total']:g} / {rules['total_credits']:g}")
-    line(len(d["missing_req"]) == 0,
-         f"필수과목 이수 {d['req_credits']:g}학점 "
-         f"({len(MASTER['required'][program]) - len(d['missing_req'])}"
-         f"/{len(MASTER['required'][program])}과목)")
-    if d["missing_req"]:
-        st.caption("미이수: " + ", ".join(f"{c['code']} {c['name']}" for c in d["missing_req"]))
-    line(d["gpa"] >= rules["min_gpa"], f"평량평균 {d['gpa']:.2f} / {rules['min_gpa']}")
-    line(d["english"] >= rules["english_credits"],
-         f"영어강의 {d['english']:g} / {rules['english_credits']:g}학점")
-    line(d["leadership"] >= rules["leadership_credits"],
-         f"리더십개발 {d['leadership']:g} / {rules['leadership_credits']:g}학점")
-
-    st.markdown("---")
-    st.subheader("🎯 심화과정(Concentration)")
-    if program == "CMBA":
-        any_done = False
-        for tr in ["마케팅", "매니지먼트", "재무"]:
-            cr = d["conc"].get(tr, 0.0)
-            ok = cr >= rules["concentration_credits"]
-            any_done = any_done or ok
-            (st.success if ok else st.info)(
-                f"{'🏆 ' if ok else ''}{tr}: {cr:g} / {rules['concentration_credits']:g}학점")
-        if not any_done:
-            st.caption("아직 9학점을 충족한 트랙이 없습니다.")
-    else:
-        s = d["conc"]
-        for tr in ["금융공학", "자산운용/투자은행", "공통트랙"]:
-            st.info(f"{tr}: {s[tr]:g}학점")
-        done = fmba_concentration_status(s)
-        if done:
-            for t in done:
-                st.success(f"🏆 인정: {t}")
+        fe, ib, common = sums["금융공학"], sums["자산운용/투자은행"], sums["공통트랙"]
+        achieved = []
+        if fe >= 9.0:
+            achieved.append(f"금융공학 ({fe:g}학점)")
+        elif fe + common >= 9.0 and fe > 0:
+            achieved.append(f"금융공학 + 공통트랙 ({fe+common:g}학점)")
+        if ib + common >= 9.0 and ib > 0:
+            achieved.append(f"자산운용/투자은행 + 공통트랙 ({ib+common:g}학점)")
+        if achieved:
+            for a in achieved:
+                st.success(f"🏆 심화과정 인정: {a}")
         else:
-            st.caption("아직 인정 기준을 충족한 조합이 없습니다.")
+            st.info("아직 인정 기준을 충족한 조합이 없습니다.")
         st.caption("📖 " + MASTER["fmba_concentration_note"])
 
     st.markdown("---")
-    st.subheader(f"📋 담은 과목 ({len(taken)}과목 · {d['total']:g}학점)")
+    st.markdown(f"### 📋 담은 과목 ({len(taken)}과목 · {total_r:g}학점)")
     if taken:
-        rows = [{
-            "학정번호": code, "과목명": v["name"], "학점": v["credits"],
-            "종별": v.get("kind", ""), "성적": v["grade"],
-            "영어": "✓" if v.get("is_english") else "",
-            "리더십": "✓" if v.get("is_leadership") else "",
-        } for code, v in taken.items()]
+        rows = [
+            {
+                "학정번호": code,
+                "과목명": v["name"],
+                "학점": v["credits"],
+                "종별": v.get("kind", ""),
+                "영어": "✓" if v.get("is_english") else "",
+                "리더십": "✓" if v.get("is_leadership") else "",
+            }
+            for code, v in taken.items()
+        ]
         st.dataframe(rows, use_container_width=True, hide_index=True)
     else:
-        st.caption("아직 담은 과목이 없습니다.")
+        st.info("아직 담은 과목이 없습니다. 위 탭에서 과목을 선택하세요.")
