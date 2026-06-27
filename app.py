@@ -137,13 +137,15 @@ def render_badges(c, program, is_required=False):
     return b
 
 
-# ── 사이드바: 과정 선택 + 실시간 진도 ───────────────────────────────
+# ── 상단: 과정 선택 (사이드바가 접혀 있어도 항상 보이도록 메인 영역에 배치) ──
+st.markdown("#### 🎓 연세 MBA 졸업이수 시뮬레이터")
+program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True, key="program")
+rules = MASTER["graduation_rules"][program]
+st.markdown("---")
+
+# ── 사이드바: 실시간 진도 ──────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🎓 졸업이수 시뮬레이터")
-    program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True,
-                       label_visibility="collapsed")
-    rules = MASTER["graduation_rules"][program]
-    st.markdown(f"**{program}** 과정")
+    st.markdown(f"## 🎓 {program} 진도")
     st.markdown("---")
 
     total   = sum(v["credits"] for v in taken.values())
