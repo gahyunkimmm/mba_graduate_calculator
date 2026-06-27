@@ -303,7 +303,10 @@ with tab_plan:
 
                     for c in buckets[tr_label]:
                         code    = c["code"]
-                        chk_key = f"elec_{code}"  # 과목코드 전역 고유 키
+                        # 계절학기는 시즌 prefix로 겨울↔여름 중복 코드 충돌 방지
+                        # 봄/가을은 리더십 코드가 이미 _s{idx} suffix를 가짐
+                        key_pfx = f"{season}_" if season else ""
+                        chk_key = f"elec_{key_pfx}{code}"
 
                         col_chk, col_info = st.columns([0.5, 9.5])
                         with col_chk:
@@ -326,7 +329,7 @@ with tab_plan:
                             count_as = st.radio(
                                 "인정 항목 (하나만 선택)",
                                 ["영어강의", "리더십개발"],
-                                horizontal=True, key=f"as_{code}",
+                                horizontal=True, key=f"as_{key_pfx}{code}",
                             )
 
                         if checked:
