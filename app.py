@@ -38,20 +38,20 @@ SEMESTER_CONFIG = {
 LEADERSHIP_COURSES = [
     {"code": "LDR001", "name": "리더십개발: 제주도",    "credits": 1.5,
      "is_leadership": True, "is_english": False, "kind": "선택", "once": True,
-     "cmba_track": None, "fmba_track": None, "note": ""},
+     "synthetic": True, "cmba_track": None, "fmba_track": None, "note": ""},
     {"code": "LDR002", "name": "리더십개발: 백두대간I",  "credits": 1.5,
      "is_leadership": True, "is_english": False, "kind": "선택", "once": True,
-     "cmba_track": None, "fmba_track": None, "note": ""},
+     "synthetic": True, "cmba_track": None, "fmba_track": None, "note": ""},
     {"code": "LDR003", "name": "리더십개발: 백두대간II", "credits": 1.5,
      "is_leadership": True, "is_english": False, "kind": "선택", "once": True,
-     "cmba_track": None, "fmba_track": None, "note": ""},
+     "synthetic": True, "cmba_track": None, "fmba_track": None, "note": ""},
 ]
 
 # 여름학기 CKJ 과목 (계절학기 최대학점 별개)
 CKJ_COURSE = {
     "code": "CKJ001", "name": "CKJ Asia Business Field Study", "credits": 3.0,
     "is_leadership": False, "is_english": True, "kind": "선택",
-    "cmba_track": None, "fmba_track": None,
+    "synthetic": True, "cmba_track": None, "fmba_track": None,
     "note": "계절학기 최대 수강학점과 별개",
 }
 
@@ -225,10 +225,6 @@ if st.session_state.view == "plan":
     # 해당 과정의 필수과목 코드 집합 — 계절학기 선택과목에서 중복 제외
     req_set = {c["code"] for c in MASTER["required"][program]}
 
-    # 선택과목(계절) 코드는 페이지 전체에서 1회만 렌더 → 위젯 키 충돌/중복 카운트 방지
-    # (같은 계절 반복, 여름↔겨울 공통 개설과목 모두 한 곳에서만 표시)
-    rendered_codes: set = set()
-
     for sem_idx, sem_cfg in enumerate(SEMESTER_CONFIG[program]):
         sem_label = sem_cfg["label"]
         season    = sem_cfg["season"]
@@ -237,26 +233,20 @@ if st.session_state.view == "plan":
         # 이 학기의 필수과목
         sem_req = [c for c in MASTER["required"][program] if c["semester"] in req_keys]
 
-        # 이 학기의 선택과목
+        # 이 학기의 선택과목 — 4개 계절학기(1여름·2겨울·3여름·4겨울)에서 각각 선택 가능.
+        # 모든 선택과목은 평생 1회만 수강(once) → 한 학기에서 담으면 다른 학기에선 잠금.
         sem_elec: list = []
-        season_elec_deferred = False
         if season:
-            pool = [c for code, c in SEASONAL_ELEC[season].items()
-                    if code not in req_set and code not in rendered_codes]
-            if season == "여름" and CKJ_COURSE["code"] not in rendered_codes:
-                pool.append(CKJ_COURSE)
-            if pool:
-                sem_elec = pool
-                for c in pool:
-                    rendered_codes.add(c["code"])
-            else:
-                # 동일 과목들이 앞 계절학기에서 이미 표시됨 → 안내만
-                season_elec_deferred = True
+            sem_elec = [{**c, "sem_idx": sem_idx, "once": True}
+                        for code, c in SEASONAL_ELEC[season].items()
+                        if code not in req_set]
+            if season == "여름":
+                sem_elec.append({**CKJ_COURSE, "sem_idx": sem_idx, "once": True})
         else:
             # 봄/가을: 리더십개발 과목 (평생 1회 → 담은 학기를 sem_idx로 기록)
             sem_elec = [{**lc, "sem_idx": sem_idx} for lc in LEADERSHIP_COURSES]
 
-        if not sem_req and not sem_elec and not season:
+        if not sem_req and not sem_elec:
             continue
 
         # 이 섹션에 '속한' 과목인지 (평생 1회 과목은 담은 학기에서만 카운트)
@@ -280,8 +270,6 @@ if st.session_state.view == "plan":
 
         # 모든 학기 기본 펼침 (선택 시에도 닫히지 않게)
         with st.expander(exp_title, expanded=True):
-            if season_elec_deferred:
-                st.caption("ℹ️ 선택과목은 앞선 동일 계절학기 목록에서 함께 선택하세요.")
 
             # ── 필수과목 ─────────────────────────────────────────────
             if sem_req:
@@ -311,9 +299,10 @@ if st.session_state.view == "plan":
             if sem_elec:
                 st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
                 if season:
-                    st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목 (연도별 합산)")
+                    st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목 "
+                               "· 한 과목은 평생 1회만 수강 가능")
                 else:
-                    st.caption(f"{len(sem_elec)}과목")
+                    st.caption(f"{len(sem_elec)}과목 · 각 과목 평생 1회만 수강 가능")
 
                 # 트랙별 분류
                 buckets: dict = {}
@@ -342,12 +331,11 @@ if st.session_state.view == "plan":
                         code = c["code"]
                         once = c.get("once")
                         rec  = taken.get(code)
-                        # 평생 1회 과목(리더십)을 다른 학기에서 이미 담음 → 잠금
+                        # 평생 1회 과목을 다른 학기에서 이미 담음 → 이 학기에선 잠금
                         locked = bool(once and rec is not None
                                       and rec.get("sem_idx") != sem_idx)
-                        # 위젯 키: 계절학기는 풀이 1번만 렌더되므로 코드만,
-                        #          리더십은 학기마다 나오므로 sem_idx 포함
-                        chk_key = f"lead_s{sem_idx}_{code}" if once else f"elec_{code}"
+                        # 위젯 키: 섹션별 고유 (학기마다 같은 과목이 나오므로 sem_idx 포함)
+                        chk_key = f"elec_s{sem_idx}_{code}"
 
                         col_chk, col_info = st.columns([0.5, 9.5])
                         with col_chk:
@@ -364,7 +352,8 @@ if st.session_state.view == "plan":
                                 tk_label = SEMESTER_CONFIG[program][rec["sem_idx"]]["label"]
                                 lock_html = (f"　<span style='color:#c0392b;font-size:0.74rem'>"
                                              f"🔒 {tk_label}에 이미 수강</span>")
-                            code_html = ("" if once
+                            # 리더십/CKJ 등 합성 코드는 숨기고, 실제 학정번호만 표시
+                            code_html = ("" if c.get("synthetic")
                                          else f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>")
                             st.markdown(
                                 f"**{c['name']}** {bgs}　`{c['credits']}학점`"
