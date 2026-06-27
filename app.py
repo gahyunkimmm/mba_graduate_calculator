@@ -210,7 +210,7 @@ with tab_plan:
     # 해당 과정의 필수과목 코드 집합 — 계절학기 선택과목에서 중복 제외
     req_set = {c["code"] for c in MASTER["required"][program]}
 
-    for sem_cfg in SEMESTER_CONFIG[program]:
+    for sem_idx, sem_cfg in enumerate(SEMESTER_CONFIG[program]):
         sem_label = sem_cfg["label"]
         season    = sem_cfg["season"]
         req_keys  = sem_cfg["req_keys"]
@@ -226,8 +226,8 @@ with tab_plan:
             if season == "여름":
                 sem_elec.append(CKJ_COURSE)
         else:
-            # 봄/가을: 리더십개발 과목 추가
-            sem_elec = list(LEADERSHIP_COURSES)
+            # 봄/가을: 리더십개발 과목 추가 (학기 인덱스를 코드에 붙여 위젯 키 중복 방지)
+            sem_elec = [{**lc, "code": f"{lc['code']}_s{sem_idx}"} for lc in LEADERSHIP_COURSES]
 
         if not sem_req and not sem_elec:
             continue
