@@ -174,11 +174,16 @@ def build_master():
 def term_key_from_filename(fname):
     """파일명에서 '2026-여름학기' 같은 학기 키와 계절 여부를 추출."""
     m = re.search(r"(20\d{2})[-\s]*([가-힣]+학기)", fname)
-    if not m:
-        return os.path.splitext(os.path.basename(fname))[0], False
-    year, term = m.group(1), m.group(2)
-    seasonal = ("여름" in term) or ("겨울" in term)
-    return f"{year}-{term}", seasonal
+    if m:
+        year, term = m.group(1), m.group(2)
+        seasonal = ("여름" in term) or ("겨울" in term)
+        return f"{year}-{term}", seasonal
+    # 연도 없는 봄학기/가을학기 파일 처리
+    if "봄학기" in fname or ("봄" in fname and "가을" not in fname):
+        return "봄학기", False
+    if "가을" in fname:
+        return "가을학기", False
+    return os.path.splitext(os.path.basename(fname))[0], False
 
 
 def find_list_sheet(wb):
@@ -227,7 +232,10 @@ def parse_offerings_sheet(ws):
         target = cell(row, "과정")        # CMBA / FMBA / CFMBA
         module = cell(row, "모듈")
         day = cell(row, "요일")
-        note = re.sub(r"\s+", " ", cell(row, "비고")).strip()
+        note_raw = cell(row, "비고") or cell(row, "기타사항")
+        note = re.sub(r"\s+", " ", note_raw).strip()
+        if "폐강" in note:
+            continue
 
         if code in offered:
             # 동일 과목 다른 분반 → 모듈만 병합

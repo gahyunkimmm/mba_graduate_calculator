@@ -15,21 +15,24 @@ DATA_DIR = os.path.join(BASE, "data")
 # season:   계절학기 선택과목 풀 (여름/겨울/None)
 SEMESTER_CONFIG = {
     "CMBA": [
-        {"label": "1학기 (봄)",    "req_keys": ["1학기(봄)"],               "season": None},
-        {"label": "여름 계절학기", "req_keys": ["1학기(여름)"],              "season": "여름"},
-        {"label": "2학기 (가을)",  "req_keys": ["2학기(가을)"],              "season": None},
-        {"label": "겨울 계절학기", "req_keys": ["2학기(겨울)"],              "season": "겨울"},
-        {"label": "3학기 (봄)",    "req_keys": ["3학기(봄)"],               "season": None},
+        {"label": "1학기 (봄)",          "req_keys": ["1학기(봄)"],   "season": None,  "regular": None},
+        {"label": "여름 계절학기",        "req_keys": ["1학기(여름)"], "season": "여름", "regular": None},
+        {"label": "2학기 (가을)",         "req_keys": ["2학기(가을)"], "season": None,  "regular": None},
+        {"label": "겨울 계절학기",        "req_keys": ["2학기(겨울)"], "season": "겨울", "regular": None},
+        {"label": "3학기 (봄)",          "req_keys": ["3학기(봄)"],   "season": None,  "regular": "봄학기"},
+        {"label": "3학기 여름 계절학기",  "req_keys": ["3학기(여름)"], "season": "여름", "regular": None},
+        {"label": "4학기 (가을)",         "req_keys": ["4학기(가을)"], "season": None,  "regular": "가을학기"},
+        {"label": "4학기 겨울 계절학기",  "req_keys": ["4학기(겨울)"], "season": "겨울", "regular": None},
     ],
     "FMBA": [
-        {"label": "1학기 (봄)",          "req_keys": ["1학기(봄)"],   "season": None},
-        {"label": "1학기 여름 계절학기", "req_keys": ["1학기(여름)"], "season": "여름"},
-        {"label": "2학기 (가을)",        "req_keys": ["2학기(가을)"], "season": None},
-        {"label": "2학기 겨울 계절학기", "req_keys": ["2학기(겨울)"], "season": "겨울"},
-        {"label": "3학기 (봄)",          "req_keys": ["3학기(봄)"],   "season": None},
-        {"label": "3학기 여름 계절학기", "req_keys": ["3학기(여름)"], "season": "여름"},
-        {"label": "4학기 (가을)",        "req_keys": ["4학기(가을)"], "season": None},
-        {"label": "4학기 겨울 계절학기", "req_keys": ["4학기(겨울)"], "season": "겨울"},
+        {"label": "1학기 (봄)",          "req_keys": ["1학기(봄)"],   "season": None,  "regular": None},
+        {"label": "1학기 여름 계절학기",  "req_keys": ["1학기(여름)"], "season": "여름", "regular": None},
+        {"label": "2학기 (가을)",         "req_keys": ["2학기(가을)"], "season": None,  "regular": None},
+        {"label": "2학기 겨울 계절학기",  "req_keys": ["2학기(겨울)"], "season": "겨울", "regular": None},
+        {"label": "3학기 (봄)",          "req_keys": ["3학기(봄)"],   "season": None,  "regular": "봄학기"},
+        {"label": "3학기 여름 계절학기",  "req_keys": ["3학기(여름)"], "season": "여름", "regular": None},
+        {"label": "4학기 (가을)",         "req_keys": ["4학기(가을)"], "season": None,  "regular": "가을학기"},
+        {"label": "4학기 겨울 계절학기",  "req_keys": ["4학기(겨울)"], "season": "겨울", "regular": None},
     ],
 }
 
@@ -100,6 +103,18 @@ for _term in sorted(OFFERINGS.keys()):
         for _c in OFFERINGS[_term]["courses"]:
             if _c["kind"] == "선택":
                 SEASONAL_ELEC[_season][_c["code"]] = _c
+
+# 정규학기 선택과목 풀 — 봄학기/가을학기 파일에서 로드
+REGULAR_ELEC: dict[str, dict] = {"봄학기": {}, "가을학기": {}}
+for _term, _data in OFFERINGS.items():
+    if _term == "봄학기":
+        for _c in _data["courses"]:
+            if _c["kind"] == "선택":
+                REGULAR_ELEC["봄학기"][_c["code"]] = _c
+    elif _term == "가을학기":
+        for _c in _data["courses"]:
+            if _c["kind"] == "선택":
+                REGULAR_ELEC["가을학기"][_c["code"]] = _c
 
 # ── 세션 상태 ─────────────────────────────────────────────────────────
 if "taken" not in st.session_state:
@@ -235,18 +250,23 @@ if st.session_state.view == "plan":
         # 이 학기의 필수과목
         sem_req = [c for c in MASTER["required"][program] if c["semester"] in req_keys]
 
-        # 이 학기의 선택과목 — 4개 계절학기(1여름·2겨울·3여름·4겨울)에서 각각 선택 가능.
-        # 모든 선택과목은 평생 1회만 수강(once) → 한 학기에서 담으면 다른 학기에선 잠금.
+        # 이 학기의 선택과목
+        regular = sem_cfg.get("regular")  # "봄학기", "가을학기", or None
         sem_elec: list = []
         if season:
+            # 계절학기: 여름/겨울 공통 선택과목 풀 (평생 1회)
             sem_elec = [{**c, "sem_idx": sem_idx, "once": True}
                         for code, c in SEASONAL_ELEC[season].items()
                         if code not in req_set]
             if season == "여름":
                 sem_elec.append({**CKJ_COURSE, "sem_idx": sem_idx, "once": True})
         else:
-            # 봄/가을: 리더십개발 과목 (평생 1회 → 담은 학기를 sem_idx로 기록)
-            sem_elec = [{**lc, "sem_idx": sem_idx} for lc in LEADERSHIP_COURSES]
+            # 정규학기(봄/가을): 정규 선택과목(있는 경우) + 리더십개발 (평생 1회)
+            if regular and REGULAR_ELEC.get(regular):
+                sem_elec = [{**c, "sem_idx": sem_idx, "once": True}
+                            for code, c in REGULAR_ELEC[regular].items()
+                            if code not in req_set]
+            sem_elec += [{**lc, "sem_idx": sem_idx} for lc in LEADERSHIP_COURSES]
 
         if not sem_req and not sem_elec:
             continue
@@ -300,7 +320,7 @@ if st.session_state.view == "plan":
             # ── 선택과목 (계절학기만) ────────────────────────────────
             if sem_elec:
                 st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
-                if season:
+                if season or (regular and REGULAR_ELEC.get(regular)):
                     st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목 "
                                "· 한 과목은 평생 1회만 수강 가능")
                 else:

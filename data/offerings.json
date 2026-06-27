@@ -1128,5 +1128,870 @@
         "note": ""
       }
     ]
+  },
+  "가을학기": {
+    "term": "가을학기",
+    "seasonal": false,
+    "source_file": "가을 CFMBA 시간표.xlsx",
+    "courses": [
+      {
+        "code": "MBA6304",
+        "name": "재무관리",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBA6309",
+        "name": "마케팅관리",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA6311",
+        "name": "경영전략",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBF6212",
+        "name": "금융수학",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBF6214",
+        "name": "기업재무",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBF6216",
+        "name": "투자론",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBF7523",
+        "name": "금융사례연구",
+        "credits": 3.0,
+        "kind": "필수",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": true,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBA7021",
+        "name": "국제경영정책",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "마케팅",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7102",
+        "name": "블루오션전략",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "정원 20명 제한"
+      },
+      {
+        "code": "MBA7133",
+        "name": "금융포럼 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": "I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7134",
+        "name": "금융포럼 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7151",
+        "name": "리더십 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": "정원 30명 제한, I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7152",
+        "name": "리더십 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "정원 30명 제한, I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7161",
+        "name": "성공을위한전략",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": "정원 30명 제한"
+      },
+      {
+        "code": "MBA7199",
+        "name": "채권시장론 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈1"
+        ],
+        "day": "화",
+        "note": "I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7200",
+        "name": "채권시장론 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈2"
+        ],
+        "day": "화",
+        "note": "I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7204",
+        "name": "경영데이터분석방법론",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBA7205",
+        "name": "고용정책과관리",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBA7229",
+        "name": "성과평가, 매니지먼트컨트롤시스템",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "월",
+        "note": "정원 40명 제한"
+      },
+      {
+        "code": "MBA7280",
+        "name": "대체투자와구조화상품 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈1"
+        ],
+        "day": "화",
+        "note": "I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7281",
+        "name": "대체투자와구조화상품 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈2"
+        ],
+        "day": "화",
+        "note": "I, II 연속수강 필수"
+      },
+      {
+        "code": "MBA7286",
+        "name": "동기부여와임파워먼트",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "월",
+        "note": "정원 25명 제한"
+      },
+      {
+        "code": "MBA7363",
+        "name": "마케팅조사론",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "마케팅",
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "월",
+        "note": "정원 20명 제한"
+      },
+      {
+        "code": "MBA7378",
+        "name": "DIGITAL BUSINESS IN CHINA",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "마케팅",
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBA7524",
+        "name": "ADVANCED BUSINESS COMMUNICATIONS",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": true,
+        "is_leadership": true,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "화",
+        "note": "영어/리더십개발 중 1개만 인정"
+      },
+      {
+        "code": "MBA7566",
+        "name": "경영프로젝트",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": true,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2",
+          "모듈1"
+        ],
+        "day": "화",
+        "note": "정원 20명 제한"
+      }
+    ]
+  },
+  "봄학기": {
+    "term": "봄학기",
+    "seasonal": false,
+    "source_file": "봄학기 CFMBA 시간표.xlsx",
+    "courses": [
+      {
+        "code": "MBA6100",
+        "name": "기업경제학",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1",
+          "모듈2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBA6101",
+        "name": "경영통계학",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2",
+          "모듈1"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBA6302",
+        "name": "재무회계",
+        "credits": 3.0,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA6303",
+        "name": "조직행동론",
+        "credits": 3.0,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBA6105",
+        "name": "관리회계",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBA6110",
+        "name": "정보시스템과가치창조",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBA6113",
+        "name": "오퍼레이션과공급망관리",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBA6114",
+        "name": "글로벌경영전략",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "CMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBF6210",
+        "name": "금융경제학",
+        "credits": 3.0,
+        "kind": "전필",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBF6302",
+        "name": "재무회계",
+        "credits": 3.0,
+        "kind": "전필",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBF6304",
+        "name": "재무관리",
+        "credits": 3.0,
+        "kind": "전필",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBF6218",
+        "name": "파생상품론",
+        "credits": 3.0,
+        "kind": "전필",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1-2"
+        ],
+        "day": "월",
+        "note": ""
+      },
+      {
+        "code": "MBF6110",
+        "name": "ODI매니지먼트",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBF6111",
+        "name": "전략",
+        "credits": 1.5,
+        "kind": "전필",
+        "target": "FMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "화",
+        "note": ""
+      },
+      {
+        "code": "MBA7141",
+        "name": "재무모델링 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "금융공학",
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7142",
+        "name": "재무모델링 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "금융공학",
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "I 과목 이수자만 II 수강 가능"
+      },
+      {
+        "code": "MBA7161",
+        "name": "성공을위한전략",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "정원 25명 제한"
+      },
+      {
+        "code": "MBA7165",
+        "name": "위험관리",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "공통트랙",
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7185",
+        "name": "국제M&A사례연구 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "자산운용/투자은행",
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": "I, II 연속 수강 필수"
+      },
+      {
+        "code": "MBA7186",
+        "name": "국제M&A사례연구 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "재무",
+        "fmba_track": "자산운용/투자은행",
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "I, II 연속 수강 필수"
+      },
+      {
+        "code": "MBA7204",
+        "name": "경영데이터분석방법론",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7364",
+        "name": "마케팅애널리틱스 I",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "마케팅",
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": "I, II 연속 수강 필수"
+      },
+      {
+        "code": "MBA7365",
+        "name": "마케팅애널리틱스 II",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "마케팅",
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "I, II 연속 수강 필수"
+      },
+      {
+        "code": "MBA7379",
+        "name": "경영자를위한부동산경제학",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7380",
+        "name": "물류데이터사이언스와생성형AI",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7382",
+        "name": "AI와전략적혁신워크샵",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": false,
+        "is_leadership": false,
+        "cmba_track": "매니지먼트",
+        "fmba_track": null,
+        "modules": [
+          "모듈1"
+        ],
+        "day": "목",
+        "note": ""
+      },
+      {
+        "code": "MBA7506",
+        "name": "BUSINESS COMMUNICATIONS",
+        "credits": 1.5,
+        "kind": "선택",
+        "target": "CFMBA",
+        "is_english": true,
+        "is_leadership": true,
+        "cmba_track": null,
+        "fmba_track": null,
+        "modules": [
+          "모듈2"
+        ],
+        "day": "목",
+        "note": "영어/리더십개발 중 1개만 인정"
+      }
+    ]
   }
 }
