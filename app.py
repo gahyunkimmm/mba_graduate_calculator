@@ -295,6 +295,13 @@ if st.session_state.view == "plan":
         "📱 이수 과목 확인: 모바일 LearnUs YONSEI → 나의강좌 → 과거강좌조회"
     )
 
+    # ── 숨김 리포트 이동 버튼 (JS 바 버튼이 programmatically 클릭) ────
+    st.markdown('<div style="position:absolute;left:-9999px;opacity:0;height:1px;overflow:hidden">', unsafe_allow_html=True)
+    if st.button("##SC_GOTO_REPORT##", key="hidden_report_nav"):
+        st.session_state.view = "report"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
     # ── 상단 고정 학점 헤더 (position:fixed, smooth animation) ────────
     _total_now = sum(v["credits"] for v in taken.values())
     _pct_now   = min(_total_now / rules["total_credits"] * 100, 100)
@@ -316,7 +323,11 @@ if st.session_state.view == "plan":
             bar.innerHTML =
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
                 '<span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>' +
+                '<div style="display:flex;align-items:center;gap:8px">' +
                 '<span id="sc-credit-text" style="font-weight:800;font-size:1.1rem;color:' + color + '">' + text + '</span>' +
+                '<button onclick="(function(){{var btns=window.parent.document.querySelectorAll(\'button\');for(var i=0;i<btns.length;i++){{if(btns[i].innerText.trim()==\'##SC_GOTO_REPORT##\'){{btns[i].click();break;}}}}}})()" ' +
+                'style="font-size:0.75rem;padding:3px 10px;border-radius:6px;border:1.5px solid #4C72FF;background:white;color:#4C72FF;cursor:pointer;white-space:nowrap;font-weight:600">📋 리포트</button>' +
+                '</div>' +
                 '</div>' +
                 '<div style="background:#e9ecef;border-radius:4px;height:7px">' +
                 '<div id="sc-credit-fill" style="background:' + color + ';width:0%;height:100%;border-radius:4px;transition:width 0.45s ease"></div>' +
