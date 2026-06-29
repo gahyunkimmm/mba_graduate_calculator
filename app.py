@@ -58,6 +58,10 @@ CKJ_COURSE = {
     "note": "계절학기 최대 수강학점과 별개",
 }
 
+# 계절학기 선택과목 학점 상한 (3.0학점) — 아래 코드는 상한 제외
+SEASONAL_CREDIT_CAP = 3.0
+SEASONAL_CAP_EXEMPT = {"CKJ001"}  # CKJ Asia Business Field Study 제외
+
 
 @st.cache_data
 def load_data():
@@ -280,6 +284,15 @@ if st.session_state.view == "plan":
                 return rec.get("sem_idx") == _idx
             return True
 
+        # 계절학기 선택과목 학점 사용량 (상한 제외 과목 제외)
+        seasonal_cr_used = 0.0
+        if season:
+            seasonal_cr_used = sum(
+                taken[c["code"]]["credits"]
+                for c in sem_elec
+                if _here(c) and c["code"] not in SEASONAL_CAP_EXEMPT
+            )
+
         # 익스팬더 제목: 체크 현황
         checked_req   = sum(1 for c in sem_req  if c["code"] in taken)
         checked_elec  = sum(1 for c in sem_elec if _here(c))
@@ -320,11 +333,17 @@ if st.session_state.view == "plan":
             # ── 선택과목 (계절학기만) ────────────────────────────────
             if sem_elec:
                 st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
-                if season or (regular and REGULAR_ELEC.get(regular)):
-                    st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목 "
-                               "· 한 과목은 평생 1회만 수강 가능")
+                if season:
+                    cap_remaining = max(0.0, SEASONAL_CREDIT_CAP - seasonal_cr_used)
+                    st.caption(
+                        f"실제 개설 시간표 기준 · {len(sem_elec)}과목 "
+                        f"· 선택 {seasonal_cr_used:g}/3.0학점 사용"
+                        + (f" · 잔여 {cap_remaining:g}학점" if cap_remaining > 0 else " · ⚠️ 학점 상한 도달")
+                    )
+                elif regular and REGULAR_ELEC.get(regular):
+                    st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목")
                 else:
-                    st.caption(f"{len(sem_elec)}과목 · 각 과목 평생 1회만 수강 가능")
+                    st.caption(f"{len(sem_elec)}과목")
 
                 # 트랙별 분류
                 buckets: dict = {}
@@ -353,9 +372,17 @@ if st.session_state.view == "plan":
                         code = c["code"]
                         once = c.get("once")
                         rec  = taken.get(code)
-                        # 평생 1회 과목을 다른 학기에서 이미 담음 → 이 학기에선 잠금
-                        locked = bool(once and rec is not None
-                                      and rec.get("sem_idx") != sem_idx)
+                        # 다른 학기에서 이미 수강 → 잠금
+                        once_locked = bool(once and rec is not None
+                                           and rec.get("sem_idx") != sem_idx)
+                        # 계절학기 3.0학점 상한 초과 → 미선택 과목 잠금
+                        cap_locked = (
+                            season is not None
+                            and code not in SEASONAL_CAP_EXEMPT
+                            and not _here(c)
+                            and seasonal_cr_used + c["credits"] > SEASONAL_CREDIT_CAP
+                        )
+                        locked = once_locked or cap_locked
                         # 위젯 키: 섹션별 고유 (학기마다 같은 과목이 나오므로 sem_idx 포함)
                         chk_key = f"elec_s{sem_idx}_{code}"
 
@@ -370,10 +397,13 @@ if st.session_state.view == "plan":
                             note_html = (f"　<span style='color:#888;font-size:0.76rem'>{c['note']}</span>"
                                          if c.get("note") else "")
                             lock_html = ""
-                            if locked:
+                            if once_locked:
                                 tk_label = SEMESTER_CONFIG[program][rec["sem_idx"]]["label"]
                                 lock_html = (f"　<span style='color:#c0392b;font-size:0.74rem'>"
                                              f"🔒 {tk_label}에 이미 수강</span>")
+                            elif cap_locked:
+                                lock_html = (f"　<span style='color:#e67e22;font-size:0.74rem'>"
+                                             f"⚠️ 계절학기 3.0학점 초과</span>")
                             # 리더십/CKJ 등 합성 코드는 숨기고, 실제 학정번호만 표시
                             code_html = ("" if c.get("synthetic")
                                          else f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>")
@@ -511,3 +541,9 @@ if st.session_state.view == "report":
         )
     else:
         st.info("아직 담은 과목이 없습니다. 학기별 이수계획 탭에서 과목을 선택하세요.")
+
+    st.markdown("---")
+    if st.button("🔄 이수과목 다시 선택하기", use_container_width=True):
+        st.session_state.taken = {}
+        st.session_state.view = "plan"
+        st.rerun()
