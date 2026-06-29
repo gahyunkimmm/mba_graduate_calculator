@@ -83,31 +83,53 @@ st.set_page_config(
 st.markdown("""
 <style>
 .sub-hd { font-size:0.83rem; font-weight:700; color:#444;
-          margin:14px 0 4px; padding-left:8px; border-left:3px solid #4C72FF; }
+          margin:10px 0 2px; padding-left:8px; border-left:3px solid #4C72FF; }
 .prog-label { font-size:0.82rem; color:#555; margin-bottom:2px; }
-.course-blocked { color:#bbb; font-size:0.88rem; padding:3px 0 3px 4px; }
+.course-blocked { color:#bbb; font-size:0.86rem; padding:1px 0 1px 4px;
+                  line-height:1.4; }
 
-/* 체크박스·과목명 항상 같은 줄 — 모바일 포함 */
+/* ── 과목 목록 여백 최소화 ── */
 div[data-testid="stCheckbox"] {
-    margin-bottom: 2px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 div[data-testid="stCheckbox"] > label {
     display: flex !important;
     flex-wrap: nowrap !important;
     align-items: flex-start !important;
     gap: 6px !important;
-    line-height: 1.4 !important;
-    min-height: 36px !important;       /* 터치 타겟 확보 */
+    line-height: 1.35 !important;
+    min-height: 34px !important;
+    padding: 1px 0 !important;
 }
-/* 컬럼 가로 고정 (혹시 컬럼 쓰는 곳) */
+/* 컬럼 가로 고정 */
 div[data-testid="stHorizontalBlock"] {
     flex-wrap: nowrap !important;
     align-items: center !important;
 }
-/* 모바일 폰트 조정 */
-@media (max-width: 640px) {
-    .streamlit-expanderHeader p { font-size: 0.85rem !important; }
-    div[data-testid="stMetricValue"] { font-size: 1.1rem !important; }
+
+/* ── 모바일 반응형 ── */
+@media (max-width: 768px) {
+    /* 컨테이너 오버플로 방지 */
+    section[data-testid="stMain"] { overflow-x: hidden !important; }
+    .main .block-container {
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+    /* 네비 버튼 크기 축소 */
+    [data-testid="stBaseButton-primary"],
+    [data-testid="stBaseButton-secondary"] {
+        font-size: 0.78rem !important;
+        padding: 0.35rem 0.4rem !important;
+        min-height: 2rem !important;
+        height: auto !important;
+    }
+    /* 엑스팬더 제목 */
+    .streamlit-expanderHeader p { font-size: 0.82rem !important; }
+    div[data-testid="stMetricValue"] { font-size: 1.0rem !important; }
+    div[data-testid="stMetricLabel"] { font-size: 0.75rem !important; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -394,15 +416,16 @@ if st.session_state.view == "plan":
 
             # ── 선택과목 ────────────────────────────────────────────
             if sem_elec:
-                st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
-                if season:
-                    cap_remaining = max(0.0, SEASONAL_CREDIT_CAP - seasonal_cr_used)
-                    cap_msg = (f"잔여 {cap_remaining:g}학점" if cap_remaining > 0 else "⚠️ 학점 상한 도달")
-                    st.caption(f"선택 {seasonal_cr_used:g}/3.0학점 · {cap_msg}")
-                elif regular and REGULAR_ELEC.get(regular):
-                    st.caption(f"{len(sem_elec)}과목")
+                # 계절학기: 상한 도달 여부를 소제목에 표시
+                if season and seasonal_cr_used >= SEASONAL_CREDIT_CAP:
+                    st.markdown('<div class="sub-hd">🗂️ 선택과목 · ⚠️ 3.0학점 상한 도달</div>',
+                                unsafe_allow_html=True)
+                elif season:
+                    cap_remaining = SEASONAL_CREDIT_CAP - seasonal_cr_used
+                    st.markdown(f'<div class="sub-hd">🗂️ 선택과목 · 잔여 {cap_remaining:g}학점</div>',
+                                unsafe_allow_html=True)
                 else:
-                    st.caption(f"{len(sem_elec)}과목")
+                    st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
 
                 # 트랙별 분류
                 buckets: dict = {}
@@ -434,7 +457,14 @@ if st.session_state.view == "plan":
                         # 다른 학기에서 이미 수강 → 잠금
                         once_locked = bool(once and rec is not None
                                            and rec.get("sem_idx") != sem_idx)
-                        # 계절학기 3.0학점 상한 초과 → 미선택 과목 잠금
+                        # 계절학기: 매 과목마다 최신 taken 기준으로 즉시 재계산
+                        if season:
+                            seasonal_cr_used = sum(
+                                taken[x["code"]]["credits"]
+                                for x in sem_elec
+                                if _here(x) and x["code"] not in SEASONAL_CAP_EXEMPT
+                            )
+                        # 계절학기 3.0학점 상한 초과 → 미선택 과목 즉시 잠금
                         cap_locked = (
                             season is not None
                             and code not in SEASONAL_CAP_EXEMPT
@@ -580,7 +610,7 @@ if st.session_state.view == "report":
         elif fe + common >= 9.0 and fe > 0:
             achieved.append(f"금융공학 + 공통트랙 ({fe+common:g}학점)")
         if ib + common >= 9.0 and ib > 0:
-            achieved.append(f"자산운용/투자은행 + 공통트랙 ({ib+common:g}학점)")
+             achieved.append(f"자산운용/투자은행 + 공통트랙 ({ib+common:g}학점)")
         if achieved:
             for a in achieved:
                 st.success(f"🏆 심화과정 인정: {a}")
@@ -595,7 +625,7 @@ if st.session_state.view == "report":
             [{"학정번호": code, "과목명": v["name"], "학점": v["credits"],
               "종별": v.get("kind",""), "영어": "✓" if v.get("is_english") else "",
               "리더십": "✓" if v.get("is_leadership") else ""}
-                       for code, v in taken.items()],
+             for code, v in taken.items()],
             use_container_width=True, hide_index=True,
         )
     else:
@@ -607,6 +637,7 @@ if st.session_state.view == "report":
         st.session_state.view = "plan"
         st.session_state.scroll_top = True
         st.rerun()
+.rerun()
     else:
         st.info("아직 담은 과목이 없습니다. 학기별 이수계획 탭에서 과목을 선택하세요.")
 
