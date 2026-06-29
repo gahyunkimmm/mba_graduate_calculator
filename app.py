@@ -82,15 +82,33 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-.badge { display:inline-block; padding:1px 8px; border-radius:10px;
-         font-size:0.72rem; font-weight:600; margin-right:4px; }
-.badge-req  { background:#fdecea; color:#a01010; }
-.badge-eng  { background:#e8f4fd; color:#1a6fa8; }
-.badge-ld   { background:#fdf3e8; color:#b05a00; }
-.badge-conc { background:#edf7ed; color:#1e6e1e; }
 .sub-hd { font-size:0.83rem; font-weight:700; color:#444;
-          margin:14px 0 6px; padding-left:8px; border-left:3px solid #4C72FF; }
+          margin:14px 0 4px; padding-left:8px; border-left:3px solid #4C72FF; }
 .prog-label { font-size:0.82rem; color:#555; margin-bottom:2px; }
+.course-blocked { color:#bbb; font-size:0.88rem; padding:3px 0 3px 4px; }
+
+/* 체크박스·과목명 항상 같은 줄 — 모바일 포함 */
+div[data-testid="stCheckbox"] {
+    margin-bottom: 2px !important;
+}
+div[data-testid="stCheckbox"] > label {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    line-height: 1.4 !important;
+    min-height: 36px !important;       /* 터치 타겟 확보 */
+}
+/* 컬럼 가로 고정 (혹시 컬럼 쓰는 곳) */
+div[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+}
+/* 모바일 폰트 조정 */
+@media (max-width: 640px) {
+    .streamlit-expanderHeader p { font-size: 0.85rem !important; }
+    div[data-testid="stMetricValue"] { font-size: 1.1rem !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -351,9 +369,8 @@ if st.session_state.view == "plan":
         credits_done  = (sum(taken[c["code"]]["credits"] for c in sem_req  if c["code"] in taken)
                        + sum(taken[c["code"]]["credits"] for c in sem_elec if _here(c)))
         elec_suffix   = f" + 선택 {checked_elec}과목" if sem_elec else ""
-        exp_title     = (f"{sem_label}　｜　"
-                         f"필수 {checked_req}/{len(sem_req)}{elec_suffix}　"
-                         f"· {credits_done:g}학점")
+        sub_stat      = f"필수 {checked_req}/{len(sem_req)}{elec_suffix} · {credits_done:g}학점"
+        exp_title     = f"{sem_label}\n{sub_stat}"
 
         # 모든 학기 기본 펼침 (선택 시에도 닫히지 않게)
         with st.expander(exp_title, expanded=True):
@@ -364,17 +381,10 @@ if st.session_state.view == "plan":
                 for c in sem_req:
                     code    = c["code"]
                     chk_key = f"req_{program}_{code}"
-                    col_chk, col_info = st.columns([0.5, 9.5])
-                    with col_chk:
-                        checked = st.checkbox("", value=code in taken, key=chk_key,
-                                              label_visibility="collapsed")
-                    with col_info:
-                        st.markdown(
-                            f"**{c['name']}** {badge('필수', 'badge-req')}"
-                            f"　`{c['credits']}학점`　<span style='color:#aaa;font-size:0.78rem'>{code}</span>",
-                            unsafe_allow_html=True,
-                        )
-
+                    checked = st.checkbox(
+                        f"**{c['name']}**  ·  {c['credits']}학점",
+                        value=code in taken, key=chk_key,
+                    )
                     if checked:
                         set_course(code, name=c["name"], credits=c["credits"],
                                    kind="필수", is_english=False, is_leadership=False)
@@ -382,18 +392,15 @@ if st.session_state.view == "plan":
                         if taken.get(code, {}).get("kind") == "필수":
                             drop_course(code)
 
-            # ── 선택과목 (계절학기만) ────────────────────────────────
+            # ── 선택과목 ────────────────────────────────────────────
             if sem_elec:
                 st.markdown('<div class="sub-hd">🗂️ 선택과목</div>', unsafe_allow_html=True)
                 if season:
                     cap_remaining = max(0.0, SEASONAL_CREDIT_CAP - seasonal_cr_used)
-                    st.caption(
-                        f"실제 개설 시간표 기준 · {len(sem_elec)}과목 "
-                        f"· 선택 {seasonal_cr_used:g}/3.0학점 사용"
-                        + (f" · 잔여 {cap_remaining:g}학점" if cap_remaining > 0 else " · ⚠️ 학점 상한 도달")
-                    )
+                    cap_msg = (f"잔여 {cap_remaining:g}학점" if cap_remaining > 0 else "⚠️ 학점 상한 도달")
+                    st.caption(f"선택 {seasonal_cr_used:g}/3.0학점 · {cap_msg}")
                 elif regular and REGULAR_ELEC.get(regular):
-                    st.caption(f"실제 개설 시간표 기준 · {len(sem_elec)}과목")
+                    st.caption(f"{len(sem_elec)}과목")
                 else:
                     st.caption(f"{len(sem_elec)}과목")
 
@@ -435,54 +442,39 @@ if st.session_state.view == "plan":
                             and seasonal_cr_used + c["credits"] > SEASONAL_CREDIT_CAP
                         )
                         locked = once_locked or cap_locked
-                        # 위젯 키: 섹션별 고유 (학기마다 같은 과목이 나오므로 sem_idx 포함)
                         chk_key = f"elec_s{sem_idx}_{code}"
 
-                        col_chk, col_info = st.columns([0.5, 9.5])
-                        with col_chk:
-                            if cap_locked:
-                                # 학점 상한 초과 → 체크박스 완전 제거, 아이콘만 표시
-                                st.markdown(
-                                    '<div style="text-align:center;padding-top:5px;'
-                                    'font-size:1rem">🚫</div>',
-                                    unsafe_allow_html=True,
-                                )
-                                checked = False
-                            else:
-                                checked = st.checkbox(
-                                    "", value=_here(c), key=chk_key,
-                                    disabled=once_locked,
-                                    label_visibility="collapsed",
-                                )
-                        with col_info:
-                            bgs = render_badges(c, program)
-                            note_html = (f"　<span style='color:#888;font-size:0.76rem'>{c['note']}</span>"
-                                         if c.get("note") else "")
-                            lock_html = ""
-                            if once_locked:
-                                tk_label = SEMESTER_CONFIG[program][rec["sem_idx"]]["label"]
-                                lock_html = (f"　<span style='color:#c0392b;font-size:0.74rem'>"
-                                             f"🔒 {tk_label}에 이미 수강</span>")
-                            elif cap_locked:
-                                lock_html = (f"　<span style='color:#e67e22;font-size:0.74rem'>"
-                                             f"🚫 학점 상한 초과 (계절학기 선택 최대 3.0학점)</span>")
-                            # 리더십/CKJ 등 합성 코드는 숨기고, 실제 학정번호만 표시
-                            code_html = ("" if c.get("synthetic")
-                                         else f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>")
+                        if cap_locked:
+                            # 학점 상한 초과 → 비활성 표시
                             st.markdown(
-                                f"**{c['name']}** {bgs}　`{c['credits']}학점`"
-                                f"{code_html}{note_html}{lock_html}",
+                                f'<div class="course-blocked">🚫 {c["name"]}  ·  {c["credits"]}학점</div>',
                                 unsafe_allow_html=True,
+                            )
+                            checked = False
+                        else:
+                            # 라벨에 과목명 + 학점 + 유형 표시 (항상 같은 줄)
+                            type_tag = ""
+                            if c.get("is_english") and c.get("is_leadership"):
+                                type_tag = "  (영어/리더십)"
+                            elif c.get("is_english"):
+                                type_tag = "  (영어강의)"
+                            elif c.get("is_leadership"):
+                                type_tag = "  (리더십개발)"
+                            lock_tag = "  🔒" if once_locked else ""
+                            chk_label = f"**{c['name']}**  ·  {c['credits']}학점{type_tag}{lock_tag}"
+                            checked = st.checkbox(
+                                chk_label, value=_here(c), key=chk_key,
+                                disabled=once_locked,
                             )
 
                         if locked:
-                            continue  # 다른 학기 소유 → 이 섹션에서 변경 금지
+                            continue  # 이 섹션에서 변경 금지
 
                         # 영어+리더십 동시 해당 → 인정 항목 선택
                         count_as = None
                         if checked and c.get("is_english") and c.get("is_leadership"):
                             count_as = st.radio(
-                                "인정 항목 (하나만 선택)",
+                                "어느 요건으로 인정할까요?",
                                 ["영어강의", "리더십개발"],
                                 horizontal=True, key=f"as_s{sem_idx}_{code}",
                             )
@@ -603,9 +595,18 @@ if st.session_state.view == "report":
             [{"학정번호": code, "과목명": v["name"], "학점": v["credits"],
               "종별": v.get("kind",""), "영어": "✓" if v.get("is_english") else "",
               "리더십": "✓" if v.get("is_leadership") else ""}
-             for code, v in taken.items()],
+                       for code, v in taken.items()],
             use_container_width=True, hide_index=True,
         )
+    else:
+        st.info("아직 담은 과목이 없습니다. 학기별 이수계획 탭에서 과목을 선택하세요.")
+
+    st.markdown("---")
+    if st.button("🔄 이수과목 다시 선택하기", use_container_width=True):
+        st.session_state.taken = {}
+        st.session_state.view = "plan"
+        st.session_state.scroll_top = True
+        st.rerun()
     else:
         st.info("아직 담은 과목이 없습니다. 학기별 이수계획 탭에서 과목을 선택하세요.")
 
