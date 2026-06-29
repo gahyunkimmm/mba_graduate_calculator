@@ -637,13 +637,3 @@ if st.session_state.view == "report":
         st.session_state.view = "plan"
         st.session_state.scroll_top = True
         st.rerun()
-.rerun()
-    else:
-        st.info("아직 담은 과목이 없습니다. 학기별 이수계획 탭에서 과목을 선택하세요.")
-
-    st.markdown("---")
-    if st.button("🔄 이수과목 다시 선택하기", use_container_width=True):
-        st.session_state.taken = {}
-        st.session_state.view = "plan"
-        st.session_state.scroll_top = True
-        st.rerun()
