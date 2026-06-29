@@ -243,6 +243,24 @@ if st.session_state.view == "plan":
     st.markdown(f"### {program} 학기별 이수계획")
     st.caption("각 학기를 펼쳐 필수과목과 계절학기 선택과목을 함께 확인하고 이수 여부를 체크하세요.")
 
+    # ── 고정 학점 현황 헤더 ─────────────────────────────────────────────
+    _total_now = sum(v["credits"] for v in taken.values())
+    _pct_now   = min(_total_now / rules["total_credits"] * 100, 100)
+    _hdr_color = "#1a7a1a" if _total_now >= rules["total_credits"] else "#4C72FF"
+    st.markdown(f"""
+<div style="position:sticky;top:3.5rem;z-index:100;background:white;
+            border:1px solid #dee2e6;border-radius:10px;padding:12px 18px;
+            margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.07)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>
+    <span style="font-weight:800;font-size:1.1rem;color:{_hdr_color}">{_total_now:g} / {rules["total_credits"]:g} 학점</span>
+  </div>
+  <div style="background:#e9ecef;border-radius:4px;height:7px">
+    <div style="background:{_hdr_color};width:{_pct_now:.1f}%;height:100%;border-radius:4px;transition:width 0.3s"></div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
     # 해당 과정의 필수과목 코드 집합 — 계절학기 선택과목에서 중복 제외
     req_set = {c["code"] for c in MASTER["required"][program]}
 
@@ -388,10 +406,20 @@ if st.session_state.view == "plan":
 
                         col_chk, col_info = st.columns([0.5, 9.5])
                         with col_chk:
-                            checked = st.checkbox(
-                                "", value=_here(c), key=chk_key, disabled=locked,
-                                label_visibility="collapsed",
-                            )
+                            if cap_locked:
+                                # 학점 상한 초과 → 체크박스 완전 제거, 아이콘만 표시
+                                st.markdown(
+                                    '<div style="text-align:center;padding-top:5px;'
+                                    'font-size:1rem">🚫</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                checked = False
+                            else:
+                                checked = st.checkbox(
+                                    "", value=_here(c), key=chk_key,
+                                    disabled=once_locked,
+                                    label_visibility="collapsed",
+                                )
                         with col_info:
                             bgs = render_badges(c, program)
                             note_html = (f"　<span style='color:#888;font-size:0.76rem'>{c['note']}</span>"
@@ -403,7 +431,7 @@ if st.session_state.view == "plan":
                                              f"🔒 {tk_label}에 이미 수강</span>")
                             elif cap_locked:
                                 lock_html = (f"　<span style='color:#e67e22;font-size:0.74rem'>"
-                                             f"⚠️ 계절학기 3.0학점 초과</span>")
+                                             f"🚫 학점 상한 초과 (계절학기 선택 최대 3.0학점)</span>")
                             # 리더십/CKJ 등 합성 코드는 숨기고, 실제 학정번호만 표시
                             code_html = ("" if c.get("synthetic")
                                          else f"　<span style='color:#aaa;font-size:0.78rem'>{code}</span>")
