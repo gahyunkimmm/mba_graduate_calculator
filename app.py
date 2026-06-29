@@ -6,6 +6,7 @@
 import json
 import os
 import streamlit as st
+import streamlit.components.v1 as components
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
@@ -243,23 +244,39 @@ if st.session_state.view == "plan":
     st.markdown(f"### {program} 학기별 이수계획")
     st.caption("각 학기를 펼쳐 필수과목과 계절학기 선택과목을 함께 확인하고 이수 여부를 체크하세요.")
 
-    # ── 고정 학점 현황 헤더 ─────────────────────────────────────────────
+    # ── 상단 고정 학점 헤더 (position:fixed — JS로 parent DOM에 주입) ────
     _total_now = sum(v["credits"] for v in taken.values())
     _pct_now   = min(_total_now / rules["total_credits"] * 100, 100)
     _hdr_color = "#1a7a1a" if _total_now >= rules["total_credits"] else "#4C72FF"
-    st.markdown(f"""
-<div style="position:sticky;top:3.5rem;z-index:100;background:white;
-            border:1px solid #dee2e6;border-radius:10px;padding:12px 18px;
-            margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.07)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-    <span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>
-    <span style="font-weight:800;font-size:1.1rem;color:{_hdr_color}">{_total_now:g} / {rules["total_credits"]:g} 학점</span>
-  </div>
-  <div style="background:#e9ecef;border-radius:4px;height:7px">
-    <div style="background:{_hdr_color};width:{_pct_now:.1f}%;height:100%;border-radius:4px;transition:width 0.3s"></div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    components.html(f"""<script>
+    (function(){{
+        var doc = window.parent.document;
+        var bar = doc.getElementById('sc-credit-bar');
+        if (!bar) {{
+            bar = doc.createElement('div');
+            bar.id = 'sc-credit-bar';
+            doc.body.appendChild(bar);
+        }}
+        bar.style.cssText = [
+            'position:fixed', 'top:50px', 'left:50%',
+            'transform:translateX(-50%)',
+            'width:min(780px,calc(100vw - 3rem))',
+            'z-index:9999', 'background:white',
+            'border:1px solid #dee2e6',
+            'border-radius:0 0 10px 10px',
+            'padding:10px 18px',
+            'box-shadow:0 3px 10px rgba(0,0,0,0.12)'
+        ].join(';');
+        bar.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
+            '<span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>' +
+            '<span style="font-weight:800;font-size:1.1rem;color:{_hdr_color}">{_total_now:g} / {rules["total_credits"]:g} 학점</span>' +
+            '</div>' +
+            '<div style="background:#e9ecef;border-radius:4px;height:7px">' +
+            '<div style="background:{_hdr_color};width:{_pct_now:.1f}%;height:100%;border-radius:4px"></div>' +
+            '</div>';
+    }})();
+    </script>""", height=1)
 
     # 해당 과정의 필수과목 코드 집합 — 계절학기 선택과목에서 중복 제외
     req_set = {c["code"] for c in MASTER["required"][program]}
@@ -480,6 +497,11 @@ if st.session_state.view == "plan":
 # 화면 2: 졸업진단 리포트
 # ────────────────────────────────────────────────────────────────────
 if st.session_state.view == "report":
+    # 학기계획 뷰에서 주입한 고정 바 제거
+    components.html("""<script>
+    var b = window.parent.document.getElementById('sc-credit-bar');
+    if (b) b.remove();
+    </script>""", height=1)
     st.markdown(f"### 📊 {program} 졸업요건 진단")
 
     total_r   = sum(v["credits"] for v in taken.values())
