@@ -157,9 +157,8 @@ def render_badges(c, program, is_required=False):
     return b
 
 
-# ── 상단: 과정 선택 (사이드바가 접혀 있어도 항상 보이도록 메인 영역에 배치) ──
 st.markdown("#### 🎓 연세 MBA 졸업이수 시뮬레이터")
-program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True, key="program")
+program = st.session_state.get("program", "CMBA")
 rules = MASTER["graduation_rules"][program]
 st.markdown("---")
 
@@ -241,40 +240,58 @@ st.markdown("---")
 # 화면 1: 학기별 이수계획
 # ────────────────────────────────────────────────────────────────────
 if st.session_state.view == "plan":
-    st.markdown(f"### {program} 학기별 이수계획")
-    st.caption("각 학기를 펼쳐 필수과목과 계절학기 선택과목을 함께 확인하고 이수 여부를 체크하세요.")
+    # 다시선택 후 최상단으로 스크롤
+    if st.session_state.get("scroll_top", False):
+        st.session_state.scroll_top = False
+        components.html("""<script>
+        window.parent.scrollTo({top: 0, behavior: 'smooth'});
+        </script>""", height=1)
 
-    # ── 상단 고정 학점 헤더 (position:fixed — JS로 parent DOM에 주입) ────
+    st.markdown("### 학기별 이수계획")
+    program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True, key="program")
+    rules = MASTER["graduation_rules"][program]
+    st.caption(
+        "각 학기를 펼쳐 필수과목과 선택과목을 확인하고 이수 여부를 체크하세요.  \n"
+        "📱 이수 과목 확인: 모바일 LearnUs YONSEI → 나의강좌 → 과거강좌조회"
+    )
+
+    # ── 상단 고정 학점 헤더 (position:fixed, smooth animation) ────────
     _total_now = sum(v["credits"] for v in taken.values())
     _pct_now   = min(_total_now / rules["total_credits"] * 100, 100)
     _hdr_color = "#1a7a1a" if _total_now >= rules["total_credits"] else "#4C72FF"
     components.html(f"""<script>
     (function(){{
         var doc = window.parent.document;
-        var bar = doc.getElementById('sc-credit-bar');
+        var pct   = {_pct_now:.2f};
+        var color = '{_hdr_color}';
+        var text  = '{_total_now:g} / {rules["total_credits"]:g} 학점';
+        var bar   = doc.getElementById('sc-credit-bar');
         if (!bar) {{
             bar = doc.createElement('div');
             bar.id = 'sc-credit-bar';
+            bar.style.cssText = 'position:fixed;top:50px;left:50%;transform:translateX(-50%);' +
+                'width:min(780px,calc(100vw - 3rem));z-index:9999;background:white;' +
+                'border:1px solid #dee2e6;border-radius:0 0 10px 10px;' +
+                'padding:10px 18px;box-shadow:0 3px 10px rgba(0,0,0,0.12)';
+            bar.innerHTML =
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
+                '<span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>' +
+                '<span id="sc-credit-text" style="font-weight:800;font-size:1.1rem;color:' + color + '">' + text + '</span>' +
+                '</div>' +
+                '<div style="background:#e9ecef;border-radius:4px;height:7px">' +
+                '<div id="sc-credit-fill" style="background:' + color + ';width:0%;height:100%;border-radius:4px;transition:width 0.45s ease"></div>' +
+                '</div>';
             doc.body.appendChild(bar);
+            setTimeout(function() {{
+                var f = doc.getElementById('sc-credit-fill');
+                if (f) f.style.width = pct + '%';
+            }}, 60);
+        }} else {{
+            var fill = doc.getElementById('sc-credit-fill');
+            if (fill) {{ fill.style.width = pct + '%'; fill.style.background = color; }}
+            var txt = doc.getElementById('sc-credit-text');
+            if (txt) {{ txt.innerHTML = text; txt.style.color = color; }}
         }}
-        bar.style.cssText = [
-            'position:fixed', 'top:50px', 'left:50%',
-            'transform:translateX(-50%)',
-            'width:min(780px,calc(100vw - 3rem))',
-            'z-index:9999', 'background:white',
-            'border:1px solid #dee2e6',
-            'border-radius:0 0 10px 10px',
-            'padding:10px 18px',
-            'box-shadow:0 3px 10px rgba(0,0,0,0.12)'
-        ].join(';');
-        bar.innerHTML =
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
-            '<span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>' +
-            '<span style="font-weight:800;font-size:1.1rem;color:{_hdr_color}">{_total_now:g} / {rules["total_credits"]:g} 학점</span>' +
-            '</div>' +
-            '<div style="background:#e9ecef;border-radius:4px;height:7px">' +
-            '<div style="background:{_hdr_color};width:{_pct_now:.1f}%;height:100%;border-radius:4px"></div>' +
-            '</div>';
     }})();
     </script>""", height=1)
 
@@ -596,4 +613,5 @@ if st.session_state.view == "report":
     if st.button("🔄 이수과목 다시 선택하기", use_container_width=True):
         st.session_state.taken = {}
         st.session_state.view = "plan"
+        st.session_state.scroll_top = True
         st.rerun()
