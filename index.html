@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>연세 MBA 졸업이수 시뮬레이터</title>
+<style>
+:root{
+  --blue:#4C72FF;--green:#1a7a1a;--red:#c0392b;
+  --bg:#f8f9fa;--surface:#fff;--border:#dee2e6;
+  --text:#212529;--muted:#6c757d;--r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+/* ── 고정 학점 바 ── */
+#cb{position:fixed;top:0;left:50%;transform:translateX(-50%);
+  width:min(800px,calc(100vw - .5rem));z-index:200;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:0 0 10px 10px;padding:9px 16px;
+  box-shadow:0 3px 10px rgba(0,0,0,.1)}
+#cb-inner{display:flex;align-items:center;gap:10px}
+#cb-prog{flex:1;min-width:0}
+#cb-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+#cb-lbl-l{font-size:11px;color:var(--muted)}
+#cb-lbl-r{font-weight:800;font-size:13px;color:var(--blue);white-space:nowrap}
+#cb-track{background:#e9ecef;border-radius:4px;height:6px}
+#cb-fill{height:100%;border-radius:4px;width:0%;background:var(--blue);transition:width .4s ease}
+#cb-sep{width:1px;height:30px;background:var(--border);flex-shrink:0}
+#cb-btn{font-size:11px;padding:6px 12px;border-radius:7px;border:none;
+  background:#FF4B4B;color:#fff;cursor:pointer;font-weight:700;
+  white-space:nowrap;flex-shrink:0}
+
+/* ── 앱 컨테이너 ── */
+#app{max-width:800px;margin:0 auto;padding:74px 14px 48px}
+
+/* ── 네비게이션 ── */
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.nav-btn{padding:9px 6px;border-radius:var(--r);border:2px solid var(--border);
+  background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;
+  transition:all .15s;text-align:center}
+.nav-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.nav-btn:not(.on):hover{border-color:var(--blue);color:var(--blue)}
+
+/* ── 프로그램 선택 ── */
+.prog-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.prog-btn{padding:8px;border-radius:var(--r);border:2px solid var(--border);
+  background:var(--surface);cursor:pointer;font-size:14px;font-weight:700}
+.prog-btn.on{border-color:var(--blue);color:var(--blue);background:#f0f4ff}
+
+/* ── 학기 아코디언 ── */
+details{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);margin-bottom:9px}
+summary{padding:11px 14px;cursor:pointer;list-style:none;
+  display:flex;justify-content:space-between;align-items:center;gap:8px}
+summary::-webkit-details-marker{display:none}
+.sum-arrow{font-size:10px;color:var(--muted);transition:transform .2s;flex-shrink:0}
+details[open] .sum-arrow{transform:rotate(180deg)}
+.sem-body{padding:0 14px 14px}
+
+/* ── 소제목 ── */
+.sub-hd{font-size:11px;font-weight:700;color:#444;margin:10px 0 3px;
+  padding-left:7px;border-left:3px solid var(--blue)}
+.track-hd{font-size:11px;font-weight:600;color:#999;margin:7px 0 2px;
+  padding-left:6px;border-left:2px solid #ddd}
+
+/* ── 체크박스 행 ── */
+.cr{display:flex;align-items:flex-start;gap:7px;padding:2px 0}
+.cr input[type=checkbox]{margin-top:2px;flex-shrink:0;
+  width:15px;height:15px;cursor:pointer;accent-color:var(--blue)}
+.cr label{font-size:13px;cursor:pointer;line-height:1.4}
+.cr.lk label{color:#bbb}
+.cr input:disabled{cursor:not-allowed}
+
+/* ── 요건 라디오 ── */
+.count-as{margin:3px 0 2px 22px;display:flex;gap:14px;font-size:12px;color:#555}
+.count-as label{display:flex;align-items:center;gap:4px;cursor:pointer}
+
+/* ── 리포트 ── */
+.grad-ok{background:#e8f5e9;border:2px solid #2e7d32;border-radius:10px;padding:14px 18px;margin:6px 0 14px}
+.grad-ng{background:#fdf0f0;border:2px solid var(--red);border-radius:10px;padding:14px 18px;margin:6px 0 14px}
+.grad-title{font-size:1.1rem;font-weight:800}
+.grad-ok .grad-title{color:#1b5e20}
+.grad-ng .grad-title{color:var(--red)}
+.grad-sub{font-size:.84rem;margin-top:3px}
+.grad-ok .grad-sub{color:#2e7d32}
+.grad-ng .grad-sub{color:#888}
+
+.mcards{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:14px 0}
+.mc{background:#f8f9fa;border-radius:var(--r);padding:9px 4px;text-align:center}
+.mc-lbl{font-size:10px;color:var(--muted);margin-bottom:2px;word-break:keep-all}
+.mc-val{font-size:1.1rem;font-weight:800;color:var(--text);line-height:1.1}
+.mc-sub{display:inline-block;border-radius:4px;padding:2px 5px;
+  font-size:9.5px;font-weight:600;margin-top:3px;word-break:keep-all}
+.mc-sub.ok{background:#f0faf0;color:var(--green)}
+.mc-sub.ng{background:#fdf0f0;color:var(--red)}
+
+.rr{border-radius:var(--r);padding:9px 13px;margin:4px 0}
+.rr.ok{background:#f0faf0}
+.rr.ng{background:#fdf0f0}
+.rr-title{font-weight:600;font-size:14px}
+.rr.ok .rr-title{color:var(--green)}
+.rr.ng .rr-title{color:var(--red)}
+.rr-detail{font-size:12px;color:#888;margin-top:3px;padding-left:18px}
+
+.pw{background:#e9ecef;border-radius:4px;height:7px;margin:3px 0}
+.pf{height:100%;border-radius:4px;background:var(--blue);transition:width .4s}
+
+.conc-ok{background:#e8f5e9;border:2px solid #2e7d32;border-radius:9px;
+  padding:11px 15px;margin:5px 0}
+.conc-ok-t{font-weight:800;font-size:.95rem;color:#1b5e20}
+.conc-ok-s{font-size:.83rem;color:#2e7d32;margin-top:2px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f8f9fa;padding:5px 7px;text-align:left;
+  border-bottom:2px solid var(--border);font-weight:600}
+td{padding:5px 7px;border-bottom:1px solid #f0f0f0}
+
+/* ── 버튼 ── */
+.btn{padding:10px 14px;border-radius:var(--r);border:none;cursor:pointer;
+  font-size:13px;font-weight:600;width:100%;text-align:center}
+.btn-p{background:var(--blue);color:#fff}
+.btn-p:hover{background:#3a5cd8}
+.btn-d{background:#fdf0f0;border:1px solid var(--red);color:var(--red)}
+.btn-d:hover{background:#fbe0e0}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.btn-full{margin:14px 0}
+
+hr{border:none;border-top:1px solid var(--border);margin:14px 0}
+h2{font-size:15px;font-weight:700;margin-bottom:10px}
+.caption{font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.55}
+
+.hidden{display:none!important}
+
+@media(max-width:560px){
+  #app{padding:68px 10px 40px}
+  .mcards{gap:4px}
+  .mc{padding:7px 2px}
+  .mc-val{font-size:.95rem}
+  .mc-lbl,.mc-sub{font-size:9px}
+  table{font-size:11px}
+  .nav-btn,.btn{font-size:12px;padding:8px 4px}
+}
+</style>
+</head>
+<body>
+
+<!-- 고정 학점 바 -->
+<div id="cb">
+  <div id="cb-inner">
+    <div id="cb-prog">
+      <div id="cb-label">
+        <span id="cb-lbl-l">📊 이수학점</span>
+        <span id="cb-lbl-r">0 / 45 학점</span>
+      </div>
+      <div id="cb-track"><div id="cb-fill"></div></div>
+    </div>
+    <div id="cb-sep"></div>
+    <button id="cb-btn" onclick="goReport()">📋 리포트</button>
+  </div>
+</div>
+
+<div id="app">
+  <p style="font-size:1.05rem;font-weight:700;margin-bottom:12px">🎓 연세 MBA 졸업이수 시뮬레이터</p>
+
+  <!-- 네비 -->
+  <div class="nav">
+    <button class="nav-btn on" id="nb-plan"   onclick="goView('plan')">📋 학기별 이수계획</button>
+    <button class="nav-btn"    id="nb-report" onclick="goView('report')">📊 졸업진단 리포트</button>
+  </div>
+  <hr style="margin-top:0">
+
+  <!-- 학기별 이수계획 -->
+  <div id="v-plan">
+    <div class="prog-sel">
+      <button class="prog-btn on" id="pb-CMBA" onclick="setProg('CMBA')">CMBA</button>
+      <button class="prog-btn"    id="pb-FMBA" onclick="setProg('FMBA')">FMBA</button>
+    </div>
+    <p class="caption">각 학기를 펼쳐 필수과목과 선택과목을 확인하고 이수 여부를 체크하세요.<br>
+    📱 모바일 LearnUs YONSEI → 나의강좌 → 과거강좌조회</p>
+    <div id="plan-body"></div>
+    <hr>
+    <div class="btn-full">
+      <button class="btn btn-p" onclick="goReport()">✅ 입력 완료 · 졸업진단 리포트 보기 →</button>
+    </div>
+  </div>
+
+  <!-- 졸업진단 리포트 -->
+  <div id="v-report" class="hidden">
+    <div id="report-body"></div>
+  </div>
+</div>
+
+<script>
+// ── 데이터 ───────────────────────────────────────────────────────────────
+const MASTER   = {"graduation_rules":{"CMBA":{"total_credits":45.0,"min_gpa":2.7,"english_credits":1.5,"leadership_credits":1.5,"concentration_credits":9.0},"FMBA":{"total_credits":45.0,"min_gpa":2.7,"english_credits":1.5,"leadership_credits":1.5,"concentration_credits":9.0}},"required":{"CMBA":[{"code":"MBA6100","name":"기업경제학","credits":1.5,"semester":"1학기(봄)"},{"code":"MBA6101","name":"경영통계학","credits":1.5,"semester":"1학기(봄)"},{"code":"MBA6302","name":"재무회계","credits":3.0,"semester":"1학기(봄)"},{"code":"MBA6303","name":"조직행동론","credits":3.0,"semester":"1학기(봄)"},{"code":"MBA6108","name":"경영과학","credits":1.5,"semester":"1학기(여름)"},{"code":"MBA6304","name":"재무관리","credits":3.0,"semester":"2학기(가을)"},{"code":"MBA6309","name":"마케팅관리","credits":3.0,"semester":"2학기(가을)"},{"code":"MBA6311","name":"경영전략","credits":3.0,"semester":"2학기(가을)"},{"code":"MBA7167","name":"기업윤리와사회적책임","credits":1.5,"semester":"2학기(겨울)"},{"code":"MBA6105","name":"관리회계","credits":1.5,"semester":"3학기(봄)"},{"code":"MBA6110","name":"정보시스템과가치창조","credits":1.5,"semester":"3학기(봄)"},{"code":"MBA6113","name":"오퍼레이션과공급망관리","credits":1.5,"semester":"3학기(봄)"},{"code":"MBA6114","name":"글로벌경영전략","credits":1.5,"semester":"3학기(봄)"}],"FMBA":[{"code":"MBF6210","name":"금융경제학","credits":3.0,"semester":"1학기(봄)"},{"code":"MBF6302","name":"재무회계","credits":3.0,"semester":"1학기(봄)"},{"code":"MBF6304","name":"재무관리","credits":3.0,"semester":"1학기(봄)"},{"code":"MBF6211","name":"금융통계학","credits":3.0,"semester":"1학기(여름)"},{"code":"MBF6212","name":"금융수학","credits":3.0,"semester":"2학기(가을)"},{"code":"MBF6214","name":"기업재무","credits":3.0,"semester":"2학기(가을)"},{"code":"MBF6216","name":"투자론","credits":3.0,"semester":"2학기(가을)"},{"code":"MBF6109","name":"마케팅","credits":1.5,"semester":"2학기(겨울)"},{"code":"MBF6110","name":"ODI 매니지먼트","credits":1.5,"semester":"3학기(봄)"},{"code":"MBF6111","name":"전략","credits":1.5,"semester":"3학기(봄)"},{"code":"MBF6218","name":"파생상품론","credits":3.0,"semester":"3학기(봄)"},{"code":"MBF6103","name":"조직행동","credits":1.5,"semester":"3학기(여름)"},{"code":"MBF7523","name":"금융사례연구","credits":3.0,"semester":"4학기(가을)"}]},"concentration":{"CMBA":{"마케팅":["MBA7021","MBA7110","MBA7120","MBA7121","MBA7124","MBA7128","MBA7130","MBA7157","MBA7158","MBA7162","MBA7170","MBA7197","MBA7211","MBA7212","MBA7218","MBA7252","MBA7255","MBA7256","MBA7260","MBA7262","MBA7265","MBA7267","MBA7277","MBA7279","MBA7288","MBA7290","MBA7291","MBA7304","MBA7363","MBA7364","MBA7365","MBA7378","MBA7600","MBA7612","MBA7618","MBA7621","MBG6114","MBG7120","MBG7128","MBG7170","MBG7218","MBG7219","MBG7279","MBG7288","MBG7363","MBG7464","MBG7465","MBG7466","MBG7509","MBG7618","MBG7619","MBG7622","MBG7623","MBG7629"],"매니지먼트":["MBA7101","MBA7102","MBA7122","MBA7131","MBA7132","MBA7151","MBA7152","MBA7161","MBA7169","MBA7193","MBA7205","MBA7209","MBA7210","MBA7251","MBA7254","MBA7261","MBA7263","MBA7274","MBA7278","MBA7286","MBA7301","MBA7367","MBA7382","MBG7101","MBG7122","MBG7131","MBG7151","MBG7161","MBG7193","MBG7254","MBG7367","YJD7807"],"재무":["MBA7133","MBA7134","MBA7135","MBA7136","MBA7137","MBA7138","MBA7139","MBA7141","MBA7142","MBA7147","MBA7148","MBA7165","MBA7179","MBA7180","MBA7185","MBA7186","MBA7199","MBA7200","MBA7237","MBA7280","MBA7281","MBG7237","MBG7283"]},"FMBA":{"금융공학":["MBA7135","MBA7136","MBA7141","MBA7142"],"자산운용/투자은행":["MBA7139","MBA7147","MBA7185","MBA7186"],"공통트랙":["MBA7133","MBA7134","MBA7137","MBA7138","MBA7148","MBA7165","MBA7179","MBA7180","MBA7199","MBA7200","MBA7280","MBA7281","MBG7283"]}},"concentration_index":{"CMBA":{"MBA7021":["마케팅"],"MBA7110":["마케팅"],"MBA7120":["마케팅"],"MBA7121":["마케팅"],"MBA7124":["마케팅"],"MBA7128":["마케팅"],"MBA7130":["마케팅"],"MBA7157":["마케팅"],"MBA7158":["마케팅"],"MBA7162":["마케팅"],"MBA7170":["마케팅"],"MBA7197":["마케팅"],"MBA7211":["마케팅"],"MBA7212":["마케팅"],"MBA7218":["마케팅"],"MBA7252":["마케팅"],"MBA7255":["마케팅"],"MBA7256":["마케팅"],"MBA7260":["마케팅"],"MBA7262":["마케팅"],"MBA7265":["마케팅"],"MBA7267":["마케팅"],"MBA7277":["마케팅"],"MBA7279":["마케팅"],"MBA7288":["마케팅"],"MBA7290":["마케팅"],"MBA7291":["마케팅"],"MBA7304":["마케팅"],"MBA7363":["마케팅"],"MBA7364":["마케팅"],"MBA7365":["마케팅"],"MBA7378":["마케팅"],"MBA7600":["마케팅"],"MBA7612":["마케팅"],"MBA7618":["마케팅"],"MBA7621":["마케팅"],"MBG6114":["마케팅"],"MBG7120":["마케팅"],"MBG7128":["마케팅"],"MBG7170":["마케팅"],"MBG7218":["마케팅"],"MBG7219":["마케팅"],"MBG7279":["마케팅"],"MBG7288":["마케팅"],"MBG7363":["마케팅"],"MBG7464":["마케팅"],"MBG7465":["마케팅"],"MBG7466":["마케팅"],"MBG7509":["마케팅"],"MBG7618":["마케팅"],"MBG7619":["마케팅"],"MBG7622":["마케팅"],"MBG7623":["마케팅"],"MBG7629":["마케팅"],"MBA7101":["매니지먼트"],"MBA7102":["매니지먼트"],"MBA7122":["매니지먼트"],"MBA7131":["매니지먼트"],"MBA7132":["매니지먼트"],"MBA7151":["매니지먼트"],"MBA7152":["매니지먼트"],"MBA7161":["매니지먼트"],"MBA7169":["매니지먼트"],"MBA7193":["매니지먼트"],"MBA7205":["매니지먼트"],"MBA7209":["매니지먼트"],"MBA7210":["매니지먼트"],"MBA7251":["매니지먼트"],"MBA7254":["매니지먼트"],"MBA7261":["매니지먼트"],"MBA7263":["매니지먼트"],"MBA7274":["매니지먼트"],"MBA7278":["매니지먼트"],"MBA7286":["매니지먼트"],"MBA7301":["매니지먼트"],"MBA7367":["매니지먼트"],"MBA7382":["매니지먼트"],"MBG7101":["매니지먼트"],"MBG7122":["매니지먼트"],"MBG7131":["매니지먼트"],"MBG7151":["매니지먼트"],"MBG7161":["매니지먼트"],"MBG7193":["매니지먼트"],"MBG7254":["매니지먼트"],"MBG7367":["매니지먼트"],"YJD7807":["매니지먼트"],"MBA7133":["재무"],"MBA7134":["재무"],"MBA7135":["재무"],"MBA7136":["재무"],"MBA7137":["재무"],"MBA7138":["재무"],"MBA7139":["재무"],"MBA7141":["재무"],"MBA7142":["재무"],"MBA7147":["재무"],"MBA7148":["재무"],"MBA7165":["재무"],"MBA7179":["재무"],"MBA7180":["재무"],"MBA7185":["재무"],"MBA7186":["재무"],"MBA7199":["재무"],"MBA7200":["재무"],"MBA7237":["재무"],"MBA7280":["재무"],"MBA7281":["재무"],"MBG7237":["재무"],"MBG7283":["재무"]},"FMBA":{"MBA7135":["금융공학"],"MBA7136":["금융공학"],"MBA7141":["금융공학"],"MBA7142":["금융공학"],"MBA7139":["자산운용/투자은행"],"MBA7147":["자산운용/투자은행"],"MBA7185":["자산운용/투자은행"],"MBA7186":["자산운용/투자은행"],"MBA7133":["공통트랙"],"MBA7134":["공통트랙"],"MBA7137":["공통트랙"],"MBA7138":["공통트랙"],"MBA7148":["공통트랙"],"MBA7165":["공통트랙"],"MBA7179":["공통트랙"],"MBA7180":["공통트랙"],"MBA7199":["공통트랙"],"MBA7200":["공통트랙"],"MBA7280":["공통트랙"],"MBA7281":["공통트랙"],"MBG7283":["공통트랙"]}},"fmba_concentration_note":"① 금융공학 9학점 → 금융공학 인정  ② 금융공학 + 공통트랙 합산 9학점↑ → 금융공학 인정  ③ 자산운용/투자은행 + 공통트랙 합산 9학점↑ → 자산운용/투자은행 인정  ※ 공통트랙 과목만 9학점은 심화과정으로 인정하지 않음","course_credits":{"MBA6100":1.5,"MBA6101":1.5,"MBA6302":3.0,"MBA6303":3.0,"MBA6108":1.5,"MBA6304":3.0,"MBA6309":3.0,"MBA6311":3.0,"MBA7167":1.5,"MBA6105":1.5,"MBA6110":1.5,"MBA6113":1.5,"MBA6114":1.5,"MBF6210":3.0,"MBF6302":3.0,"MBF6304":3.0,"MBF6211":3.0,"MBF6212":3.0,"MBF6214":3.0,"MBF6216":3.0,"MBF6109":1.5,"MBF6110":1.5,"MBF6111":1.5,"MBF6218":3.0,"MBF6103":1.5,"MBF7523":3.0,"MBA7021":1.5,"MBA7110":1.5,"MBA7120":1.5,"MBA7121":1.5,"MBA7124":1.5,"MBA7128":1.5,"MBA7130":1.5,"MBA7157":1.5,"MBA7158":1.5,"MBA7162":1.5,"MBA7170":1.5,"MBA7197":1.5,"MBA7211":1.5,"MBA7212":1.5,"MBA7218":1.5,"MBA7252":1.5,"MBA7255":1.5,"MBA7256":1.5,"MBA7260":1.5,"MBA7262":1.5,"MBA7265":1.5,"MBA7267":1.5,"MBA7277":1.5,"MBA7279":1.5,"MBA7288":1.5,"MBA7290":1.5,"MBA7291":1.5,"MBA7304":1.5,"MBA7363":1.5,"MBA7364":1.5,"MBA7365":1.5,"MBA7378":1.5,"MBA7600":1.5,"MBA7612":1.5,"MBA7618":1.5,"MBA7621":1.5,"MBG6114":1.5,"MBG7120":1.5,"MBG7128":1.5,"MBG7170":1.5,"MBG7218":1.5,"MBG7219":1.5,"MBG7279":1.5,"MBG7288":1.5,"MBG7363":1.5,"MBG7464":1.5,"MBG7465":1.5,"MBG7466":1.5,"MBG7509":3.0,"MBG7618":1.5,"MBG7619":1.5,"MBG7622":1.5,"MBG7623":1.5,"MBG7629":1.5,"MBA7101":1.5,"MBA7102":1.5,"MBA7122":1.5,"MBA7131":1.5,"MBA7132":1.5,"MBA7151":1.5,"MBA7152":1.5,"MBA7161":1.5,"MBA7169":1.5,"MBA7193":1.5,"MBA7205":1.5,"MBA7209":1.5,"MBA7210":1.5,"MBA7251":1.5,"MBA7254":1.5,"MBA7261":1.5,"MBA7263":1.5,"MBA7274":1.5,"MBA7278":1.5,"MBA7286":1.5,"MBA7301":1.5,"MBA7367":1.5,"MBA7382":1.5,"MBG7101":1.5,"MBG7122":1.5,"MBG7131":1.5,"MBG7151":1.5,"MBG7161":1.5,"MBG7193":1.5,"MBG7254":1.5,"MBG7367":1.5,"YJD7807":3.0,"MBA7133":1.5,"MBA7134":1.5,"MBA7135":1.5,"MBA7136":1.5,"MBA7137":1.5,"MBA7138":1.5,"MBA7139":1.5,"MBA7141":1.5,"MBA7142":1.5,"MBA7147":1.5,"MBA7148":1.5,"MBA7165":1.5,"MBA7179":1.5,"MBA7180":1.5,"MBA7185":1.5,"MBA7186":1.5,"MBA7199":1.5,"MBA7200":1.5,"MBA7237":1.5,"MBA7280":1.5,"MBA7281":1.5,"MBG7237":1.5,"MBG7283":1.5},"course_names":{"MBA6100":"기업경제학","MBA6101":"경영통계학","MBA6302":"재무회계","MBA6303":"조직행동론","MBA6108":"경영과학","MBA6304":"재무관리","MBA6309":"마케팅관리","MBA6311":"경영전략","MBA7167":"기업윤리와사회적책임","MBA6105":"관리회계","MBA6110":"정보시스템과가치창조","MBA6113":"오퍼레이션과공급망관리","MBA6114":"글로벌경영전략","MBF6210":"금융경제학","MBF6302":"재무회계","MBF6304":"재무관리","MBF6211":"금융통계학","MBF6212":"금융수학","MBF6214":"기업재무","MBF6216":"투자론","MBF6109":"마케팅","MBF6110":"ODI 매니지먼트","MBF6111":"전략","MBF6218":"파생상품론","MBF6103":"조직행동","MBF7523":"금융사례연구"}};
+const OFFERINGS = {"2025-겨울학기":{"term":"2025-겨울학기","seasonal":true,"source_file":"2025-겨울학기 CFMBA 시간표(11.26.)_공지용.xlsx","courses":[{"code":"MBA7167","name":"기업윤리와사회적책임","credits":1.5,"kind":"필수","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1","모듈2"],"day":"월/화/목/금","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBF6109","name":"마케팅","credits":1.5,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBA7102","name":"블루오션전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7114","name":"프로젝트매니지먼트 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7115","name":"프로젝트매니지먼트 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":"프로젝트매니지먼트 I 이수자만 수강 가능"},{"code":"MBA7139","name":"자산운용의이론과실제","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"자산운용/투자은행","modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7161","name":"성공을위한전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7165","name":"위험관리","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7171","name":"경영자를위한비즈니스애널리틱스 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7205","name":"고용관리와정책","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7256","name":"DEVELOPING GLOBAL MANAGER","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":"CMBA-2023학번은 매니지먼트 심화과정으로 적용"},{"code":"MBA7265","name":"SIMULATION OF PRODUCT LOCALIZATION","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":"영어 & CMBA 마케팅 심화 중복 인정"},{"code":"MBA7266","name":"비즈니스 게임을 사용한 의사결정","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7279","name":"B2B마케팅전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7367","name":"기업가정신과벤처캐피탈","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":"1.10.(토) 수업은 다른 날 보강 예정(수업계획서 확인 必)"},{"code":"MBA7506","name":"BUSINESS COMMUNICATIONS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":"영어/리더십개발 중 1개만 인정"}]},"2025-여름학기":{"term":"2025-여름학기","seasonal":true,"source_file":"2025-여름학기 CFMBA 시간표(5.26.)_공지용.xlsx","courses":[{"code":"MBA6108","name":"경영과학","credits":1.5,"kind":"필수","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1","모듈2"],"day":"월/화/목/금","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBF6211","name":"금융통계학","credits":3.0,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월/화/목/금","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBF6103","name":"조직행동","credits":1.5,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBA7025","name":"경영자를위한IT/AI경제학","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7102","name":"블루오션전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7104","name":"불확실성과최적의사결정","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7110","name":"글로벌경영환경과기업","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7114","name":"프로젝트매니지먼트 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7115","name":"프로젝트매니지먼트 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":"프로젝트매니지먼트 I 이수자만 수강 가능"},{"code":"MBA7120","name":"글로벌마케팅","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7148","name":"REAL ESTATE FINANCE","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7159","name":"게임이론적사고:이론과응용","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7161","name":"성공을위한전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7165","name":"위험관리","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1","모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7169","name":"조직설계","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7171","name":"경영자를위한비즈니스애널리틱스 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7204","name":"경영데이터분석방법론","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7206","name":"STOCK VALUATION USING FINANCIAL, ENVIRONMENTAL, SOCIAL, AND GOVERNANCE (ESG) FACTORS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7218","name":"MANAGING IN EMERGING MARKETS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7254","name":"GLOBAL TALENT MANAGEMENT","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7256","name":"DEVELOPING GLOBAL MANAGER","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":"CMBA 2023학번은 매니지먼트 심화과정으로 적용"},{"code":"MBA7367","name":"기업가정신과벤처캐피탈","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7532","name":"BUSINESS WRITING","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈1","모듈2"],"day":"월/화/목/금","note":"영어/리더십개발 중 1개만 인정"},{"code":"MBA7614","name":"스타트업과지식재산관리전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBG7266","name":"BUSINESS GAME FOR INTENSIVE DECISION MAKING","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""}]},"2026-여름학기":{"term":"2026-여름학기","seasonal":true,"source_file":"2026-여름학기 CFMBA 시간표(5.26.)_공지용.xlsx","courses":[{"code":"MBA6108","name":"경영과학","credits":1.5,"kind":"필수","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1","모듈2"],"day":"월/화/목/금","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBF6211","name":"금융통계학","credits":3.0,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월/화/목/금","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBF6103","name":"조직행동","credits":1.5,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":"전공필수: 수강 가능 학점 한도 제외"},{"code":"MBA7023","name":"생성형AI기반비즈니스","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7025","name":"경영자를위한IT/AI경제학","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7102","name":"블루오션전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7104","name":"불확실성과최적의사결정","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7110","name":"글로벌경영환경과기업","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7114","name":"프로젝트매니지먼트 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7115","name":"프로젝트매니지먼트 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":"프로젝트매니지먼트 I 이수자만 수강 가능"},{"code":"MBA7120","name":"글로벌마케팅","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7139","name":"자산운용의이론과실제","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"자산운용/투자은행","modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7148","name":"REAL ESTATE FINANCE","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7159","name":"게임이론적사고:이론과응용","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7161","name":"성공을위한전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"수/토","note":"정원 25명 제한"},{"code":"MBA7165","name":"위험관리","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7169","name":"조직설계","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":""},{"code":"MBA7171","name":"경영자를위한비즈니스애널리틱스 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7204","name":"경영데이터분석방법론","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"수/토","note":""},{"code":"MBA7206","name":"STOCK VALUATION USING FINANCIAL, ENVIRONMENTAL, SOCIAL, AND GOVERNANCE(ESG) FACTORS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBA7218","name":"MANAGING IN EMERGING MARKETS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈2"],"day":"수/토","note":"수요일: 실시간 온라인 수업(ZOOM) 정원 11명 제한(타 MBA 과정생 교차수강 허용)"},{"code":"MBA7254","name":"GLOBAL TALENT MANAGEMENT","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":"정원 25명 제한"},{"code":"MBA7256","name":"DEVELOPING GLOBAL MANAGER","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"수/토","note":"정원 25명 제한"},{"code":"MBA7367","name":"기업가정신과벤처캐피탈","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"수/토","note":"매니지먼트 심화과목 신규 지정"},{"code":"MBA7382","name":"AI와전략적혁신워크샵","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"월/화/목/금","note":""},{"code":"MBA7524","name":"ADVANCED BUSINESS COMMUNICATIONS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월/화/목/금","note":"영어/리더십개발 중 1개만 인정"},{"code":"MBA7614","name":"스타트업과지식재산관리전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""},{"code":"MBG7266","name":"BUSINESS GAME FOR INTENSIVE DECISION MAKING","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"수/토","note":""}]},"가을학기":{"term":"가을학기","seasonal":false,"source_file":"가을 CFMBA 시간표.xlsx","courses":[{"code":"MBA6304","name":"재무관리","credits":3.0,"kind":"필수","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월","note":""},{"code":"MBA6309","name":"마케팅관리","credits":3.0,"kind":"필수","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"목","note":""},{"code":"MBA6311","name":"경영전략","credits":3.0,"kind":"필수","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"화","note":""},{"code":"MBF6212","name":"금융수학","credits":3.0,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"목","note":""},{"code":"MBF6214","name":"기업재무","credits":3.0,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월","note":""},{"code":"MBF6216","name":"투자론","credits":3.0,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"화","note":""},{"code":"MBF7523","name":"금융사례연구","credits":3.0,"kind":"필수","target":"FMBA","is_english":false,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월","note":""},{"code":"MBA7021","name":"국제경영정책","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈2"],"day":"목","note":""},{"code":"MBA7102","name":"블루오션전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"목","note":"정원 20명 제한"},{"code":"MBA7133","name":"금융포럼 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1"],"day":"목","note":"I, II 연속수강 필수"},{"code":"MBA7134","name":"금융포럼 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈2"],"day":"목","note":"I, II 연속수강 필수"},{"code":"MBA7151","name":"리더십 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"목","note":"정원 30명 제한, I, II 연속수강 필수"},{"code":"MBA7152","name":"리더십 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"목","note":"정원 30명 제한, I, II 연속수강 필수"},{"code":"MBA7161","name":"성공을위한전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"목","note":"정원 30명 제한"},{"code":"MBA7199","name":"채권시장론 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1"],"day":"화","note":"I, II 연속수강 필수"},{"code":"MBA7200","name":"채권시장론 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈2"],"day":"화","note":"I, II 연속수강 필수"},{"code":"MBA7204","name":"경영데이터분석방법론","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월","note":""},{"code":"MBA7205","name":"고용정책과관리","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"화","note":""},{"code":"MBA7229","name":"성과평가, 매니지먼트컨트롤시스템","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월","note":"정원 40명 제한"},{"code":"MBA7280","name":"대체투자와구조화상품 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1"],"day":"화","note":"I, II 연속수강 필수"},{"code":"MBA7281","name":"대체투자와구조화상품 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈2"],"day":"화","note":"I, II 연속수강 필수"},{"code":"MBA7286","name":"동기부여와임파워먼트","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"월","note":"정원 25명 제한"},{"code":"MBA7363","name":"마케팅조사론","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"월","note":"정원 20명 제한"},{"code":"MBA7378","name":"DIGITAL BUSINESS IN CHINA","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"화","note":""},{"code":"MBA7524","name":"ADVANCED BUSINESS COMMUNICATIONS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"화","note":"영어/리더십개발 중 1개만 인정"},{"code":"MBA7566","name":"경영프로젝트","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈2","모듈1"],"day":"화","note":"정원 20명 제한"}]},"봄학기":{"term":"봄학기","seasonal":false,"source_file":"봄학기 CFMBA 시간표.xlsx","courses":[{"code":"MBA6100","name":"기업경제학","credits":1.5,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1","모듈2"],"day":"월","note":""},{"code":"MBA6101","name":"경영통계학","credits":1.5,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2","모듈1"],"day":"월","note":""},{"code":"MBA6302","name":"재무회계","credits":3.0,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"목","note":""},{"code":"MBA6303","name":"조직행동론","credits":3.0,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"화","note":""},{"code":"MBA6105","name":"관리회계","credits":1.5,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"월","note":""},{"code":"MBA6110","name":"정보시스템과가치창조","credits":1.5,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"화","note":""},{"code":"MBA6113","name":"오퍼레이션과공급망관리","credits":1.5,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"화","note":""},{"code":"MBA6114","name":"글로벌경영전략","credits":1.5,"kind":"전필","target":"CMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"월","note":""},{"code":"MBF6210","name":"금융경제학","credits":3.0,"kind":"전필","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"화","note":""},{"code":"MBF6302","name":"재무회계","credits":3.0,"kind":"전필","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"목","note":""},{"code":"MBF6304","name":"재무관리","credits":3.0,"kind":"전필","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월","note":""},{"code":"MBF6218","name":"파생상품론","credits":3.0,"kind":"전필","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1-2"],"day":"월","note":""},{"code":"MBF6110","name":"ODI매니지먼트","credits":1.5,"kind":"전필","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"화","note":""},{"code":"MBF6111","name":"전략","credits":1.5,"kind":"전필","target":"FMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"화","note":""},{"code":"MBA7141","name":"재무모델링 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"금융공학","modules":["모듈1"],"day":"목","note":""},{"code":"MBA7142","name":"재무모델링 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"금융공학","modules":["모듈2"],"day":"목","note":"I 과목 이수자만 II 수강 가능"},{"code":"MBA7161","name":"성공을위한전략","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈2"],"day":"목","note":"정원 25명 제한"},{"code":"MBA7165","name":"위험관리","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"공통트랙","modules":["모듈1"],"day":"목","note":""},{"code":"MBA7185","name":"국제M&A사례연구 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"자산운용/투자은행","modules":["모듈1"],"day":"목","note":"I, II 연속 수강 필수"},{"code":"MBA7186","name":"국제M&A사례연구 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"재무","fmba_track":"자산운용/투자은행","modules":["모듈2"],"day":"목","note":"I, II 연속 수강 필수"},{"code":"MBA7204","name":"경영데이터분석방법론","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"목","note":""},{"code":"MBA7364","name":"마케팅애널리틱스 I","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈1"],"day":"목","note":"I, II 연속 수강 필수"},{"code":"MBA7365","name":"마케팅애널리틱스 II","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"마케팅","fmba_track":null,"modules":["모듈2"],"day":"목","note":"I, II 연속 수강 필수"},{"code":"MBA7379","name":"경영자를위한부동산경제학","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈1"],"day":"목","note":""},{"code":"MBA7380","name":"물류데이터사이언스와생성형AI","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"목","note":""},{"code":"MBA7382","name":"AI와전략적혁신워크샵","credits":1.5,"kind":"선택","target":"CFMBA","is_english":false,"is_leadership":false,"cmba_track":"매니지먼트","fmba_track":null,"modules":["모듈1"],"day":"목","note":""},{"code":"MBA7506","name":"BUSINESS COMMUNICATIONS","credits":1.5,"kind":"선택","target":"CFMBA","is_english":true,"is_leadership":true,"cmba_track":null,"fmba_track":null,"modules":["모듈2"],"day":"목","note":"영어/리더십개발 중 1개만 인정"}]}};
+
+// ── 상수 ─────────────────────────────────────────────────────────────────
+const SEM_CFG = {
+  CMBA:[
+    {label:'1학기 (봄)',         rk:['1학기(봄)'],   sn:null,   reg:null},
+    {label:'여름 계절학기',       rk:['1학기(여름)'], sn:'여름', reg:null},
+    {label:'2학기 (가을)',        rk:['2학기(가을)'], sn:null,   reg:null},
+    {label:'겨울 계절학기',       rk:['2학기(겨울)'], sn:'겨울', reg:null},
+    {label:'3학기 (봄)',         rk:['3학기(봄)'],   sn:null,   reg:'봄학기'},
+    {label:'3학기 여름 계절학기', rk:['3학기(여름)'], sn:'여름', reg:null},
+    {label:'4학기 (가을)',        rk:['4학기(가을)'], sn:null,   reg:'가을학기'},
+    {label:'4학기 겨울 계절학기', rk:['4학기(겨울)'], sn:'겨울', reg:null},
+  ],
+  FMBA:[
+    {label:'1학기 (봄)',         rk:['1학기(봄)'],   sn:null,   reg:null},
+    {label:'1학기 여름 계절학기', rk:['1학기(여름)'], sn:'여름', reg:null},
+    {label:'2학기 (가을)',        rk:['2학기(가을)'], sn:null,   reg:null},
+    {label:'2학기 겨울 계절학기', rk:['2학기(겨울)'], sn:'겨울', reg:null},
+    {label:'3학기 (봄)',         rk:['3학기(봄)'],   sn:null,   reg:'봄학기'},
+    {label:'3학기 여름 계절학기', rk:['3학기(여름)'], sn:'여름', reg:null},
+    {label:'4학기 (가을)',        rk:['4학기(가을)'], sn:null,   reg:'가을학기'},
+    {label:'4학기 겨울 계절학기', rk:['4학기(겨울)'], sn:'겨울', reg:null},
+  ],
+};
+
+const LDR = [
+  {code:'LDR001',name:'리더십개발: 제주도',   credits:1.5,is_leadership:true,is_english:false,kind:'선택',once:true,cmba_track:null,fmba_track:null},
+  {code:'LDR002',name:'리더십개발: 백두대간I', credits:1.5,is_leadership:true,is_english:false,kind:'선택',once:true,cmba_track:null,fmba_track:null},
+  {code:'LDR003',name:'리더십개발: 백두대간II',credits:1.5,is_leadership:true,is_english:false,kind:'선택',once:true,cmba_track:null,fmba_track:null},
+];
+const CKJ = {code:'CKJ001',name:'CKJ Asia Business Field Study',credits:3.0,is_english:true,is_leadership:false,kind:'선택',cmba_track:null,fmba_track:null};
+const GST = {code:'GST001',name:'Global Study Tour',credits:2.0,is_english:true,is_leadership:true,kind:'선택',cmba_track:null,fmba_track:null};
+const CAP = 3.0;
+const CAP_EXEMPT = new Set(['CKJ001']);
+
+// ── 과목 풀 빌드 ──────────────────────────────────────────────────────────
+const SE = {'여름':{},'겨울':{}};
+for(const t of Object.keys(OFFERINGS).sort()){
+  const s = t.includes('여름')?'여름':t.includes('겨울')?'겨울':null;
+  if(s) for(const c of OFFERINGS[t].courses) if(c.kind==='선택') SE[s][c.code]=c;
+}
+const RE = {'봄학기':{},'가을학기':{}};
+for(const [t,d] of Object.entries(OFFERINGS))
+  if(t==='봄학기'||t==='가을학기')
+    for(const c of d.courses) if(c.kind==='선택') RE[t][c.code]=c;
+
+// ── 상태 ─────────────────────────────────────────────────────────────────
+let prog  = localStorage.getItem('prog')  || 'CMBA';
+let taken = {};
+try{ taken = JSON.parse(localStorage.getItem('taken')||'{}'); }catch(e){}
+
+function save(){ localStorage.setItem('prog',prog); localStorage.setItem('taken',JSON.stringify(taken)); }
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+const fc = n => n%1===0 ? String(n) : n.toFixed(1);
+
+function stats(){
+  let tot=0,eng=0,ld=0;
+  for(const v of Object.values(taken)){
+    tot+=v.credits;
+    if(v.is_english)    eng+=v.credits;
+    if(v.is_leadership) ld +=v.credits;
+  }
+  const rq   = MASTER.required[prog];
+  const miss = rq.filter(c=>!taken[c.code]);
+  return {tot,eng,ld,miss,rq};
+}
+
+// ── Credit bar ────────────────────────────────────────────────────────────
+function updateBar(){
+  const {tot} = stats();
+  const rules = MASTER.graduation_rules[prog];
+  const pct   = Math.min(tot/rules.total_credits*100,100);
+  const color = tot>=rules.total_credits ? '#1a7a1a' : '#4C72FF';
+  document.getElementById('cb-lbl-r').textContent = `${fc(tot)} / ${rules.total_credits} 학점`;
+  document.getElementById('cb-lbl-r').style.color = color;
+  document.getElementById('cb-fill').style.width  = pct+'%';
+  document.getElementById('cb-fill').style.background = color;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+let view = 'plan';
+function goView(v){
+  view = v;
+  const isPlan = v==='plan';
+  document.getElementById('v-plan')  .classList.toggle('hidden',!isPlan);
+  document.getElementById('v-report').classList.toggle('hidden', isPlan);
+  document.getElementById('cb')      .classList.toggle('hidden', !isPlan);
+  document.getElementById('nb-plan')  .classList.toggle('on',isPlan);
+  document.getElementById('nb-report').classList.toggle('on',!isPlan);
+  window.scrollTo(0,0);
+  if(isPlan) renderPlan(); else renderReport();
+}
+function goReport(){ goView('report'); }
+
+function setProg(p){
+  prog=p;
+  save();
+  ['CMBA','FMBA'].forEach(x=>document.getElementById('pb-'+x).classList.toggle('on',x===p));
+  renderPlan();
+}
+
+// ── elecMap: renderPlan 때 빌드, toggleElec에서 참조 ───────────────────
+let elecMap={};
+
+// ── Plan render ───────────────────────────────────────────────────────────
+function renderPlan(){
+  elecMap={};
+  const reqSet = new Set(MASTER.required[prog].map(c=>c.code));
+  const frags  = [];
+
+  SEM_CFG[prog].forEach((sem,si)=>{
+    const {label,rk,sn,reg}=sem;
+    const semReq = MASTER.required[prog].filter(c=>rk.includes(c.semester));
+
+    // 선택과목 풀
+    let semElec=[];
+    if(sn){
+      semElec = Object.values(SE[sn]).filter(c=>!reqSet.has(c.code)).map(c=>({...c,semIdx:si,once:true}));
+      if(sn==='여름') semElec.push({...CKJ,semIdx:si,once:true});
+      semElec.push({...GST,semIdx:si,once:true}); // 여름/겨울 모든 계절학기
+    } else {
+      if(reg && RE[reg]) semElec = Object.values(RE[reg]).filter(c=>!reqSet.has(c.code)).map(c=>({...c,semIdx:si,once:true}));
+      semElec.push(...LDR.map(lc=>({...lc,semIdx:si})));
+    }
+
+    if(!semReq.length && !semElec.length) return;
+
+    const isHere = c => {
+      const r=taken[c.code];
+      if(!r) return false;
+      return c.once ? r.sem_idx===si : true;
+    };
+
+    // 계절학기 학점 사용량
+    let snCr = sn ? semElec.filter(c=>isHere(c)&&!CAP_EXEMPT.has(c.code)).reduce((s,c)=>s+taken[c.code].credits,0) : 0;
+
+    // 이 학기 통계
+    const cReq  = semReq.filter(c=>taken[c.code]).length;
+    const cElec = semElec.filter(c=>isHere(c)).length;
+    const crDone= semReq.filter(c=>taken[c.code]).reduce((s,c)=>s+taken[c.code].credits,0)
+                + semElec.filter(c=>isHere(c)).reduce((s,c)=>s+taken[c.code].credits,0);
+    const elecSfx = semElec.length ? ` + 선택 ${cElec}과목` : '';
+    const stat    = `필수 ${cReq}/${semReq.length}${elecSfx} · ${fc(crDone)}학점`;
+
+    // 트랙 버킷
+    const bk={};
+    for(const c of semElec){
+      const tr = prog==='CMBA' ? c.cmba_track : c.fmba_track;
+      const key = tr ? `심화 · ${tr}` : (c.is_leadership||c.is_english) ? '영어 / 리더십개발' : '기타 선택';
+      if(!bk[key]) bk[key]=[];
+      bk[key].push(c);
+    }
+    const tOrd = [...Object.keys(bk).filter(k=>k.startsWith('심화')).sort(),'영어 / 리더십개발','기타 선택'].filter(k=>bk[k]);
+
+    let h=`<details open><summary>
+  <span style="font-weight:600;font-size:13px">${label}</span>
+  <span style="font-size:11px;color:#888;font-weight:400">${stat}</span>
+  <span class="sum-arrow">▼</span>
+</summary><div class="sem-body">`;
+
+    // 필수
+    if(semReq.length){
+      h+=`<div class="sub-hd">📌 필수과목</div>`;
+      for(const c of semReq){
+        const id=`req_${c.code}`;
+        const chk=taken[c.code]?'checked':'';
+        h+=`<div class="cr"><input type="checkbox" id="${id}" ${chk} onchange="toggleReq('${c.code}','${c.name.replace(/'/g,"\\'")}',${c.credits})"><label for="${id}"><strong>${c.name}</strong> · ${c.credits}학점</label></div>`;
+      }
+    }
+
+    // 선택
+    if(semElec.length){
+      if(sn){
+        if(snCr>=CAP) h+=`<div class="sub-hd">🗂️ 선택과목 · ⚠️ 3.0학점 상한 도달</div>`;
+        else          h+=`<div class="sub-hd">🗂️ 선택과목 · 잔여 ${fc(CAP-snCr)}학점</div>`;
+      } else {
+        h+=`<div class="sub-hd">🗂️ 선택과목</div>`;
+      }
+
+      for(const trLabel of tOrd){
+        const cl=bk[trLabel];
+        const cnt=cl.filter(c=>isHere(c)).length;
+        h+=`<div class="track-hd">${trLabel} · ${cnt}/${cl.length}과목</div>`;
+
+        // 최신 snCr 재계산
+        snCr = sn ? semElec.filter(c=>isHere(c)&&!CAP_EXEMPT.has(c.code)).reduce((s,c)=>s+taken[c.code].credits,0) : 0;
+
+        for(const c of cl){
+          const mapKey=`elec_s${si}_${c.code}`;
+          elecMap[mapKey]=c;
+
+          const rec     = taken[c.code];
+          const here    = isHere(c);
+          const onceLk  = !!(c.once && rec && rec.sem_idx!==si);
+          const capLk   = !!(sn && !CAP_EXEMPT.has(c.code) && !here && snCr+c.credits>CAP);
+          const lk      = onceLk||capLk;
+
+          let tag='';
+          if(c.is_english&&c.is_leadership) tag='  (영어/리더십)';
+          else if(c.is_english)              tag='  (영어강의)';
+          else if(c.is_leadership)           tag='  (리더십개발)';
+
+          h+=`<div class="cr${lk?' lk':''}">
+<input type="checkbox" id="${mapKey}" ${here?'checked':''} ${lk?'disabled':''} ${!lk?`onchange="toggleElec('${mapKey}')"`:''}>
+<label for="${mapKey}"><strong>${c.name}</strong> · ${c.credits}학점${tag}${lk?' 🔒':''}</label>
+</div>`;
+
+          // 영어+리더십 동시 해당시 라디오
+          if(here && !lk && c.is_english && c.is_leadership){
+            const asEng = rec&&rec.is_english ? 'checked':'';
+            const asLd  = rec&&rec.is_leadership ? 'checked':'';
+            h+=`<div class="count-as"><span>어느 요건?</span>
+<label><input type="radio" name="as_${mapKey}" value="영어강의" ${asEng} onchange="setCountAs('${c.code}','영어강의')"> 영어강의</label>
+<label><input type="radio" name="as_${mapKey}" value="리더십개발" ${asLd} onchange="setCountAs('${c.code}','리더십개발')"> 리더십개발</label>
+</div>`;
+          }
+        }
+      }
+    }
+
+    h+=`</div></details>`;
+    frags.push(h);
+  });
+
+  document.getElementById('plan-body').innerHTML = frags.join('');
+  updateBar();
+}
+
+// ── Toggle handlers ───────────────────────────────────────────────────────
+function toggleReq(code,name,credits){
+  const el=document.getElementById('req_'+code);
+  if(el.checked) taken[code]={name,credits,kind:'필수',is_english:false,is_leadership:false};
+  else if(taken[code]&&taken[code].kind==='필수') delete taken[code];
+  save(); renderPlan();
+}
+
+function toggleElec(key){
+  const c=elecMap[key];
+  if(!c){ renderPlan(); return; }
+  const el=document.getElementById(key);
+  if(el.checked){
+    taken[c.code]={
+      name:c.name, credits:c.credits, kind:'선택',
+      is_english:!!c.is_english, is_leadership:!!c.is_leadership,
+      once:!!c.once, sem_idx:c.semIdx,
+      cmba_track:c.cmba_track||null, fmba_track:c.fmba_track||null
+    };
+  } else {
+    if(taken[c.code]&&taken[c.code].kind==='선택') delete taken[c.code];
+  }
+  save(); renderPlan();
+}
+
+function setCountAs(code,val){
+  if(!taken[code]) return;
+  taken[code].is_english    = (val==='영어강의');
+  taken[code].is_leadership = (val==='리더십개발');
+  save();
+}
+
+// ── Report render ─────────────────────────────────────────────────────────
+function renderReport(){
+  const rules=MASTER.graduation_rules[prog];
+  const {tot,eng,ld,miss,rq}=stats();
+  const ok=tot>=rules.total_credits && !miss.length && eng>=rules.english_credits && ld>=rules.leadership_credits;
+
+  let h='';
+
+  // 졸업 배너
+  if(ok){
+    h+=`<div class="grad-ok"><div class="grad-title">🎓 졸업 요건 충족!</div><div class="grad-sub">모든 졸업 요건을 충족했습니다.</div></div>`;
+  } else {
+    const iss=[];
+    if(tot<rules.total_credits)       iss.push(`학점 ${fc(rules.total_credits-tot)}학점 부족`);
+    if(miss.length)                   iss.push(`필수과목 ${miss.length}개 미이수`);
+    if(eng<rules.english_credits)     iss.push(`영어강의 ${fc(rules.english_credits-eng)}학점 부족`);
+    if(ld<rules.leadership_credits)   iss.push(`리더십개발 ${fc(rules.leadership_credits-ld)}학점 부족`);
+    h+=`<div class="grad-ng"><div class="grad-title">❌ 졸업 요건 미충족</div><div class="grad-sub">미충족: ${iss.join(' · ')}</div></div>`;
+  }
+
+  // 메트릭 카드
+  h+=`<div class="mcards">
+<div class="mc"><div class="mc-lbl">총 이수학점</div><div class="mc-val">${fc(tot)}학점</div><div class="mc-sub ${tot>=rules.total_credits?'ok':'ng'}">목표 ${rules.total_credits}학점</div></div>
+<div class="mc"><div class="mc-lbl">필수 미이수</div><div class="mc-val">${miss.length}과목</div><div class="mc-sub ${miss.length===0?'ok':'ng'}">${rq.length-miss.length}/${rq.length} 완료</div></div>
+<div class="mc"><div class="mc-lbl">영어강의</div><div class="mc-val">${fc(eng)}학점</div><div class="mc-sub ${eng>=rules.english_credits?'ok':'ng'}">기준 ${rules.english_credits}학점</div></div>
+<div class="mc"><div class="mc-lbl">리더십개발</div><div class="mc-val">${fc(ld)}학점</div><div class="mc-sub ${ld>=rules.leadership_credits?'ok':'ng'}">기준 ${rules.leadership_credits}학점</div></div>
+</div>`;
+
+  h+='<hr>';
+
+  // 요건 행
+  const rr=(ok2,t,d)=>`<div class="rr ${ok2?'ok':'ng'}"><div class="rr-title">${ok2?'✅':'❌'} ${t}</div>${d?`<div class="rr-detail">${d}</div>`:''}</div>`;
+  h+=rr(tot>=rules.total_credits, `총 이수학점 ${fc(tot)} / ${rules.total_credits}학점`);
+  h+=rr(miss.length===0, `필수과목 ${rq.length-miss.length}/${rq.length}과목 이수`, miss.length?'미이수: '+miss.map(c=>c.name).join(', '):'');
+  h+=rr(eng>=rules.english_credits, `영어강의 ${fc(eng)} / ${rules.english_credits}학점`);
+  h+=rr(ld>=rules.leadership_credits, `리더십개발 ${fc(ld)} / ${rules.leadership_credits}학점`);
+
+  h+='<hr><h2>🎯 심화과정(Concentration)</h2>';
+
+  // Concentration
+  const ci=MASTER.concentration_index[prog];
+  if(prog==='CMBA'){
+    const conc={};
+    for(const [code,v] of Object.entries(taken))
+      for(const tr of (ci[code]||[])) conc[tr]=(conc[tr]||0)+v.credits;
+    for(const tr of ['마케팅','매니지먼트','재무']){
+      const cr=conc[tr]||0, ok2=cr>=rules.concentration_credits;
+      if(ok2){
+        h+=`<div class="conc-ok"><div class="conc-ok-t">🏆 ${tr} 심화과정 인정</div><div class="conc-ok-s">${fc(cr)} / ${rules.concentration_credits}학점 달성</div></div>`;
+      } else {
+        const pct=Math.min(cr/rules.concentration_credits*100,100);
+        h+=`<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${tr}</span><span style="color:#666">${fc(cr)} / ${rules.concentration_credits}학점</span></div><div class="pw"><div class="pf" style="width:${pct}%"></div></div></div>`;
+      }
+    }
+  } else {
+    const sums={'금융공학':0,'자산운용/투자은행':0,'공통트랙':0};
+    for(const [code,v] of Object.entries(taken))
+      for(const tr of (ci[code]||[])) sums[tr]=(sums[tr]||0)+v.credits;
+    for(const [tr,cr] of Object.entries(sums)){
+      const pct=Math.min(cr/rules.concentration_credits*100,100);
+      h+=`<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${tr}</span><span style="color:#666">${fc(cr)}학점</span></div><div class="pw"><div class="pf" style="width:${pct}%"></div></div></div>`;
+    }
+    const fe=sums['금융공학'],ib=sums['자산운용/투자은행'],cm=sums['공통트랙'];
+    const ach=[];
+    if(fe>=9) ach.push(`금융공학 (${fc(fe)}학점)`);
+    else if(fe+cm>=9&&fe>0) ach.push(`금융공학 + 공통트랙 (${fc(fe+cm)}학점)`);
+    if(ib+cm>=9&&ib>0) ach.push(`자산운용/투자은행 + 공통트랙 (${fc(ib+cm)}학점)`);
+    for(const a of ach) h+=`<div class="conc-ok"><div class="conc-ok-t">🏆 심화과정 인정</div><div class="conc-ok-s">${a}</div></div>`;
+    if(!ach.length) h+=`<p style="color:#888;font-size:13px;margin:6px 0">아직 인정 기준을 충족한 조합이 없습니다.</p>`;
+    h+=`<p style="font-size:11px;color:#888;margin-top:8px">📖 ${MASTER.fmba_concentration_note}</p>`;
+  }
+
+  h+='<hr>';
+
+  // 전체 과목 테이블
+  const entries=Object.entries(taken);
+  h+=`<details><summary style="font-weight:600;font-size:13px;padding:10px 0;cursor:pointer;list-style:none">📋 담은 과목 전체 보기 (${entries.length}과목 · ${fc(tot)}학점) ▾</summary>`;
+  if(entries.length){
+    h+=`<div style="overflow-x:auto;margin-top:8px"><table><thead><tr><th>학정번호</th><th>과목명</th><th>학점</th><th>종별</th><th>영어</th><th>리더십</th></tr></thead><tbody>`;
+    for(const [code,v] of entries)
+      h+=`<tr><td>${code}</td><td>${v.name}</td><td>${v.credits}</td><td>${v.kind||''}</td><td>${v.is_english?'✓':''}</td><td>${v.is_leadership?'✓':''}</td></tr>`;
+    h+='</tbody></table></div>';
+  } else {
+    h+=`<p style="color:#888;font-size:13px;padding:6px 0">아직 담은 과목이 없습니다.</p>`;
+  }
+  h+='</details><hr>';
+
+  // 하단 버튼
+  h+=`<div class="btn-row">
+<button class="btn btn-p" onclick="goView('plan')">← 이수계획으로 돌아가기</button>
+<button class="btn btn-d" onclick="resetAll()">🗑️ 전체 초기화</button>
+</div>`;
+
+  document.getElementById('report-body').innerHTML=h;
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function resetAll(){
+  if(!confirm('모든 이수 데이터를 초기화할까요?')) return;
+  taken={}; save(); goView('plan');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+['CMBA','FMBA'].forEach(p=>document.getElementById('pb-'+p).classList.toggle('on',p===prog));
+goView('plan');
+</script>
+</body>
+</html>

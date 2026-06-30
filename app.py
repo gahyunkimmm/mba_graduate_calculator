@@ -74,6 +74,14 @@ CKJ_COURSE = {
     "note": "계절학기 최대 수강학점과 별개",
 }
 
+# 모든 계절학기(여름/겨울) 개설, 평생 1회, 영어강의·리더십개발 중 하나로만 인정
+GST_COURSE = {
+    "code": "GST001", "name": "Global Study Tour", "credits": 2.0,
+    "is_leadership": True, "is_english": True, "kind": "선택",
+    "synthetic": True, "cmba_track": None, "fmba_track": None,
+    "note": "리더십개발 또는 영어강의 중 하나로만 인정",
+}
+
 # 계절학기 선택과목 학점 상한 (3.0학점) — 아래 코드는 상한 제외
 SEASONAL_CREDIT_CAP = 3.0
 SEASONAL_CAP_EXEMPT = {"CKJ001"}  # CKJ Asia Business Field Study 제외
@@ -419,6 +427,8 @@ if st.session_state.view == "plan":
                         if code not in req_set]
             if season == "여름":
                 sem_elec.append({**CKJ_COURSE, "sem_idx": sem_idx, "once": True})
+            # GST는 여름/겨울 모든 계절학기에 개설
+            sem_elec.append({**GST_COURSE, "sem_idx": sem_idx, "once": True})
         else:
             # 정규학기(봄/가을): 정규 선택과목(있는 경우) + 리더십개발 (평생 1회)
             if regular and REGULAR_ELEC.get(regular):
