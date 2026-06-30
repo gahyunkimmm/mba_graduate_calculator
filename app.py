@@ -8,6 +8,21 @@ import os
 import streamlit as st
 import streamlit.components.v1 as components
 
+# Streamlit의 실제 스크롤 컨테이너(stMain)를 직접 타깃
+_SCROLL_TOP = """<script>
+(function(){
+    var doc = window.parent.document;
+    function _t() {
+        var el = doc.querySelector('[data-testid="stMain"]') || doc.querySelector('.main');
+        if (el) el.scrollTop = 0;
+    }
+    _t();
+    setTimeout(_t, 100);
+    setTimeout(_t, 300);
+    setTimeout(_t, 600);
+})();
+</script>"""
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 
@@ -110,10 +125,14 @@ div[data-testid="stCheckbox"] > label {
 + [data-testid="element-container"]:has([data-testid="stCheckbox"]) {
     margin-top: -22px !important;
 }
-/* 컬럼 가로 고정 */
+/* 컬럼: 항상 수평 배치 */
 div[data-testid="stHorizontalBlock"] {
     flex-wrap: nowrap !important;
-    align-items: center !important;
+    align-items: stretch !important;
+}
+div[data-testid="stColumn"] {
+    min-width: 0 !important;
+    overflow: hidden !important;
 }
 
 /* ── 모바일 반응형 ── */
@@ -121,23 +140,29 @@ div[data-testid="stHorizontalBlock"] {
     /* 컨테이너 오버플로 방지 */
     section[data-testid="stMain"] { overflow-x: hidden !important; }
     .main .block-container {
-        padding-left: 0.6rem !important;
-        padding-right: 0.6rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
         max-width: 100vw !important;
         overflow-x: hidden !important;
     }
-    /* 네비 버튼 크기 축소 */
+    /* 네비 버튼: 텍스트 줄바꿈 허용, 크기 축소 */
     [data-testid="stBaseButton-primary"],
     [data-testid="stBaseButton-secondary"] {
-        font-size: 0.78rem !important;
-        padding: 0.35rem 0.4rem !important;
+        font-size: 0.74rem !important;
+        padding: 0.3rem 0.3rem !important;
         min-height: 2rem !important;
         height: auto !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
     }
     /* 엑스팬더 제목 */
-    .streamlit-expanderHeader p { font-size: 0.82rem !important; }
+    .streamlit-expanderHeader p { font-size: 0.8rem !important; }
     div[data-testid="stMetricValue"] { font-size: 1.0rem !important; }
     div[data-testid="stMetricLabel"] { font-size: 0.75rem !important; }
+    /* 체크박스 텍스트 */
+    div[data-testid="stCheckbox"] > label { font-size: 0.82rem !important; }
+    /* 컬럼 gap 축소 */
+    div[data-testid="stHorizontalBlock"] { gap: 0.4rem !important; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -269,6 +294,7 @@ with nav1:
     if st.button("📋 학기별 이수계획", use_container_width=True,
                  type="primary" if st.session_state.view == "plan" else "secondary"):
         st.session_state.view = "plan"
+        st.session_state.scroll_top = True
         st.rerun()
 with nav2:
     if st.button("📊 졸업진단 리포트", use_container_width=True,
@@ -282,12 +308,9 @@ st.markdown("---")
 # 화면 1: 학기별 이수계획
 # ────────────────────────────────────────────────────────────────────
 if st.session_state.view == "plan":
-    # 다시선택 후 최상단으로 스크롤
-    if st.session_state.get("scroll_top", False):
+    _do_scroll = st.session_state.get("scroll_top", False)
+    if _do_scroll:
         st.session_state.scroll_top = False
-        components.html("""<script>
-        window.parent.scrollTo({top: 0, behavior: 'smooth'});
-        </script>""", height=1)
 
     program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True, key="program")
     rules = MASTER["graduation_rules"][program]
@@ -315,18 +338,18 @@ if st.session_state.view == "plan":
                 'border:1px solid #dee2e6;border-radius:0 0 10px 10px;' +
                 'padding:10px 18px;box-shadow:0 3px 10px rgba(0,0,0,0.12)';
             bar.innerHTML =
-                '<div style="display:flex;align-items:center;gap:12px">' +
-                '<div style="flex:1;min-width:0">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
-                '<span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>' +
-                '<span id="sc-credit-text" style="font-weight:800;font-size:1.1rem;color:' + color + '">' + text + '</span>' +
+                '<div style="display:flex;align-items:center;gap:10px">' +
+                '<div style="flex:1;min-width:0;overflow:hidden">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:6px;flex-wrap:nowrap">' +
+                '<span style="font-size:0.76rem;color:#666;white-space:nowrap;flex-shrink:1;overflow:hidden;text-overflow:ellipsis">📊 이수학점</span>' +
+                '<span id="sc-credit-text" style="font-weight:800;font-size:0.92rem;color:' + color + ';white-space:nowrap;flex-shrink:0">' + text + '</span>' +
                 '</div>' +
-                '<div style="background:#e9ecef;border-radius:4px;height:7px">' +
+                '<div style="background:#e9ecef;border-radius:4px;height:6px">' +
                 '<div id="sc-credit-fill" style="background:' + color + ';width:0%;height:100%;border-radius:4px;transition:width 0.45s ease"></div>' +
                 '</div>' +
                 '</div>' +
-                '<div style="width:1px;height:36px;background:#dee2e6;flex-shrink:0"></div>' +
-                '<button id="sc-report-nav-btn" style="font-size:0.78rem;padding:5px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#FF4B4B,#d93025);color:white;cursor:pointer;white-space:nowrap;font-weight:700;box-shadow:0 2px 8px rgba(255,75,75,0.45);flex-shrink:0">📋 리포트 보기</button>' +
+                '<div style="width:1px;height:30px;background:#dee2e6;flex-shrink:0"></div>' +
+                '<button id="sc-report-nav-btn" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:linear-gradient(135deg,#FF4B4B,#d93025);color:white;cursor:pointer;white-space:nowrap;font-weight:700;box-shadow:0 2px 8px rgba(255,75,75,0.4);flex-shrink:0">📋 리포트</button>' +
                 '</div>';
             doc.body.appendChild(bar);
             setTimeout(function() {{
@@ -568,6 +591,10 @@ if st.session_state.view == "plan":
         st.session_state.view = "report"
         st.rerun()
 
+    # ── 뷰 맨 아래에서 스크롤 ───────────────────────────────────────────
+    if _do_scroll:
+        components.html(_SCROLL_TOP, height=1)
+
 
 # ────────────────────────────────────────────────────────────────────
 # 화면 2: 졸업진단 리포트
@@ -624,11 +651,11 @@ if st.session_state.view == "report":
         vc  = "#1a7a1a" if ok else "#c0392b"
         bgs = "#f0faf0" if ok else "#fdf0f0"
         col.markdown(
-            f'<div style="background:#f8f9fa;border-radius:8px;padding:12px 8px;text-align:center">'
-            f'<div style="font-size:0.78rem;color:#666;margin-bottom:4px">{label}</div>'
-            f'<div style="font-size:1.5rem;font-weight:800;color:#111;line-height:1.1">{value}</div>'
-            f'<div style="display:inline-block;background:{bgs};border-radius:5px;'
-            f'padding:3px 10px;font-size:0.76rem;font-weight:600;color:{vc};margin-top:6px">{sub}</div>'
+            f'<div style="background:#f8f9fa;border-radius:8px;padding:8px 3px;text-align:center">'
+            f'<div style="font-size:0.65rem;color:#666;margin-bottom:3px;word-break:keep-all">{label}</div>'
+            f'<div style="font-size:1.1rem;font-weight:800;color:#111;line-height:1.1">{value}</div>'
+            f'<div style="display:inline-block;background:{bgs};border-radius:4px;'
+            f'padding:2px 5px;font-size:0.6rem;font-weight:600;color:{vc};margin-top:4px;word-break:keep-all">{sub}</div>'
             f'</div>', unsafe_allow_html=True)
 
     m1, m2, m3, m4 = st.columns(4)
@@ -732,10 +759,11 @@ if st.session_state.view == "report":
             st.info("아직 담은 과목이 없습니다. 학기별 이수계획에서 과목을 선택하세요.")
 
     st.markdown("---")
-    _bc1, _bc2 = st.columns([3, 1])
+    _bc1, _bc2 = st.columns(2)
     with _bc1:
         if st.button("← 이수계획으로 돌아가기", use_container_width=True, type="primary"):
             st.session_state.view = "plan"
+            st.session_state.scroll_top = True
             st.rerun()
     with _bc2:
         if st.button("🗑️ 전체 초기화", use_container_width=True):
@@ -743,3 +771,6 @@ if st.session_state.view == "report":
             st.session_state.view = "plan"
             st.session_state.scroll_top = True
             st.rerun()
+
+    # ── 리포트 뷰 맨 아래에서 스크롤 ──────────────────────────────────
+    components.html(_SCROLL_TOP, height=1)
