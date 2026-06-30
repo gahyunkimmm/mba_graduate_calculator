@@ -85,7 +85,23 @@ def load_data():
         master = json.load(fp)
     with open(os.path.join(DATA_DIR, "offerings.json"), encoding="utf-8") as fp:
         offerings = json.load(fp)
-    return master, offerings
+
+    seasonal_elec: dict = {"여름": {}, "겨울": {}}
+    for term in sorted(offerings.keys()):
+        season = "여름" if "여름" in term else "겨울" if "겨울" in term else None
+        if season:
+            for c in offerings[term]["courses"]:
+                if c["kind"] == "선택":
+                    seasonal_elec[season][c["code"]] = c
+
+    regular_elec: dict = {"봄학기": {}, "가을학기": {}}
+    for term, data in offerings.items():
+        if term in ("봄학기", "가을학기"):
+            for c in data["courses"]:
+                if c["kind"] == "선택":
+                    regular_elec[term][c["code"]] = c
+
+    return master, offerings, seasonal_elec, regular_elec
 
 
 st.set_page_config(
@@ -168,31 +184,10 @@ div[data-testid="stColumn"] {
 """, unsafe_allow_html=True)
 
 try:
-    MASTER, OFFERINGS = load_data()
+    MASTER, OFFERINGS, SEASONAL_ELEC, REGULAR_ELEC = load_data()
 except FileNotFoundError:
     st.error("⚠️ 데이터 파일 없음. 터미널에서 `python build_data.py`를 먼저 실행하세요.")
     st.stop()
-
-# 계절학기 선택과목 풀 — 여름/겨울별로 통합, 연도 최신 우선
-SEASONAL_ELEC: dict[str, dict] = {"여름": {}, "겨울": {}}
-for _term in sorted(OFFERINGS.keys()):
-    _season = "여름" if "여름" in _term else "겨울" if "겨울" in _term else None
-    if _season:
-        for _c in OFFERINGS[_term]["courses"]:
-            if _c["kind"] == "선택":
-                SEASONAL_ELEC[_season][_c["code"]] = _c
-
-# 정규학기 선택과목 풀 — 봄학기/가을학기 파일에서 로드
-REGULAR_ELEC: dict[str, dict] = {"봄학기": {}, "가을학기": {}}
-for _term, _data in OFFERINGS.items():
-    if _term == "봄학기":
-        for _c in _data["courses"]:
-            if _c["kind"] == "선택":
-                REGULAR_ELEC["봄학기"][_c["code"]] = _c
-    elif _term == "가을학기":
-        for _c in _data["courses"]:
-            if _c["kind"] == "선택":
-                REGULAR_ELEC["가을학기"][_c["code"]] = _c
 
 # ── 세션 상태 ─────────────────────────────────────────────────────────
 if "taken" not in st.session_state:
@@ -211,6 +206,17 @@ def drop_course(code):
     taken.pop(code, None)
 
 
+def compute_stats(prog):
+    """taken을 한 번만 순회해 총학점·영어·리더십·미이수필수 반환."""
+    total = english = ldship = 0.0
+    for v in taken.values():
+        total += v["credits"]
+        if v.get("is_english"):    english += v["credits"]
+        if v.get("is_leadership"): ldship  += v["credits"]
+    missing = [c for c in MASTER["required"][prog] if c["code"] not in taken]
+    return total, english, ldship, missing
+
+
 st.markdown("#### 🎓 연세 MBA 졸업이수 시뮬레이터")
 program = st.session_state.get("program", "CMBA")
 rules = MASTER["graduation_rules"][program]
@@ -221,11 +227,8 @@ with st.sidebar:
     st.markdown(f"## 🎓 {program} 진도")
     st.markdown("---")
 
-    total   = sum(v["credits"] for v in taken.values())
+    total, english, ldship, missing = compute_stats(program)
     rq_list = MASTER["required"][program]
-    missing = [c for c in rq_list if c["code"] not in taken]
-    english = sum(v["credits"] for v in taken.values() if v.get("is_english"))
-    ldship  = sum(v["credits"] for v in taken.values() if v.get("is_leadership"))
 
     def pct(cur, goal): return min(int(cur / goal * 100), 100)
     def ok_icon(flag): return "✅" if flag else "🔲"
@@ -519,13 +522,6 @@ if st.session_state.view == "plan":
                         # 다른 학기에서 이미 수강 → 잠금
                         once_locked = bool(once and rec is not None
                                            and rec.get("sem_idx") != sem_idx)
-                        # 계절학기: 매 과목마다 최신 taken 기준으로 즉시 재계산
-                        if season:
-                            seasonal_cr_used = sum(
-                                taken[x["code"]]["credits"]
-                                for x in sem_elec
-                                if _here(x) and x["code"] not in SEASONAL_CAP_EXEMPT
-                            )
                         # 계절학기 3.0학점 상한 초과 → 미선택 과목 즉시 잠금
                         cap_locked = (
                             season is not None
@@ -607,11 +603,8 @@ if st.session_state.view == "report":
     </script>""", height=1)
     st.markdown("### 📊 졸업요건 진단")
 
-    total_r   = sum(v["credits"] for v in taken.values())
+    total_r, english_r, ld_r, missing_r = compute_stats(program)
     rq_list_r = MASTER["required"][program]
-    missing_r = [c for c in rq_list_r if c["code"] not in taken]
-    english_r = sum(v["credits"] for v in taken.values() if v.get("is_english"))
-    ld_r      = sum(v["credits"] for v in taken.values() if v.get("is_leadership"))
 
     _grad_ok = (
         total_r   >= rules["total_credits"]
