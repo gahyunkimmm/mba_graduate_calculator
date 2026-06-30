@@ -87,6 +87,9 @@ st.markdown("""
 .prog-label { font-size:0.82rem; color:#555; margin-bottom:2px; }
 .course-blocked { color:#bbb; font-size:0.86rem; padding:1px 0 1px 4px;
                   line-height:1.4; }
+.track-hd { font-size:0.76rem; font-weight:600; color:#999;
+            margin:8px 0 2px; padding-left:6px;
+            border-left:2px solid #ddd; letter-spacing:0.02em; }
 
 /* ── 과목 목록 여백 최소화 ── */
 div[data-testid="stCheckbox"] {
@@ -98,9 +101,14 @@ div[data-testid="stCheckbox"] > label {
     flex-wrap: nowrap !important;
     align-items: flex-start !important;
     gap: 6px !important;
-    line-height: 1.35 !important;
-    min-height: 34px !important;
-    padding: 1px 0 !important;
+    line-height: 1.3 !important;
+    min-height: 22px !important;
+    padding: 0 !important;
+}
+/* 체크박스 바로 다음에 체크박스가 올 때만 간격 축소 (서브헤더 제외) */
+[data-testid="element-container"]:has([data-testid="stCheckbox"])
++ [data-testid="element-container"]:has([data-testid="stCheckbox"]) {
+    margin-top: -22px !important;
 }
 /* 컬럼 가로 고정 */
 div[data-testid="stHorizontalBlock"] {
@@ -178,25 +186,6 @@ def drop_course(code):
     taken.pop(code, None)
 
 
-def badge(text, cls):
-    return f'<span class="badge {cls}">{text}</span>'
-
-
-def render_badges(c, program, is_required=False):
-    """뱃지 HTML 문자열 반환"""
-    b = ""
-    if is_required:
-        b += badge("필수", "badge-req")
-    if c.get("is_english"):
-        b += badge("영어강의", "badge-eng")
-    if c.get("is_leadership"):
-        b += badge("리더십개발", "badge-ld")
-    tr = c.get("cmba_track") if program == "CMBA" else c.get("fmba_track")
-    if tr:
-        b += badge(f"심화:{tr}", "badge-conc")
-    return b
-
-
 st.markdown("#### 🎓 연세 MBA 졸업이수 시뮬레이터")
 program = st.session_state.get("program", "CMBA")
 rules = MASTER["graduation_rules"][program]
@@ -253,9 +242,22 @@ with st.sidebar:
             st.caption(f"{tr}: {cr:g}학점")
 
     st.markdown("---")
-    if st.button("🗑️ 전체 초기화", use_container_width=True):
-        st.session_state.taken = {}
-        st.rerun()
+    if "confirm_reset" not in st.session_state:
+        st.session_state.confirm_reset = False
+    if st.session_state.confirm_reset:
+        st.warning("정말 초기화할까요?")
+        c1, c2 = st.columns(2)
+        if c1.button("예, 초기화", use_container_width=True):
+            st.session_state.taken = {}
+            st.session_state.confirm_reset = False
+            st.rerun()
+        if c2.button("취소", use_container_width=True):
+            st.session_state.confirm_reset = False
+            st.rerun()
+    else:
+        if st.button("🗑️ 전체 초기화", use_container_width=True):
+            st.session_state.confirm_reset = True
+            st.rerun()
 
 
 # ── 화면 전환 (탭 대신 버튼으로 → 프로그램적 이동 가능) ────────────────
@@ -287,20 +289,12 @@ if st.session_state.view == "plan":
         window.parent.scrollTo({top: 0, behavior: 'smooth'});
         </script>""", height=1)
 
-    st.markdown("### 학기별 이수계획")
     program = st.radio("소속 과정", ["CMBA", "FMBA"], horizontal=True, key="program")
     rules = MASTER["graduation_rules"][program]
     st.caption(
         "각 학기를 펼쳐 필수과목과 선택과목을 확인하고 이수 여부를 체크하세요.  \n"
         "📱 이수 과목 확인: 모바일 LearnUs YONSEI → 나의강좌 → 과거강좌조회"
     )
-
-    # ── 숨김 리포트 이동 버튼 (JS 바 버튼이 programmatically 클릭) ────
-    st.markdown('<div style="position:absolute;left:-9999px;opacity:0;height:1px;overflow:hidden">', unsafe_allow_html=True)
-    if st.button("##SC_GOTO_REPORT##", key="hidden_report_nav"):
-        st.session_state.view = "report"
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── 상단 고정 학점 헤더 (position:fixed, smooth animation) ────────
     _total_now = sum(v["credits"] for v in taken.values())
@@ -321,16 +315,18 @@ if st.session_state.view == "plan":
                 'border:1px solid #dee2e6;border-radius:0 0 10px 10px;' +
                 'padding:10px 18px;box-shadow:0 3px 10px rgba(0,0,0,0.12)';
             bar.innerHTML =
+                '<div style="display:flex;align-items:center;gap:12px">' +
+                '<div style="flex:1;min-width:0">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">' +
                 '<span style="font-weight:700;font-size:0.9rem;color:#444">📊 총 이수학점</span>' +
-                '<div style="display:flex;align-items:center;gap:8px">' +
                 '<span id="sc-credit-text" style="font-weight:800;font-size:1.1rem;color:' + color + '">' + text + '</span>' +
-                '<button onclick="(function(){{var btns=window.parent.document.querySelectorAll(\'button\');for(var i=0;i<btns.length;i++){{if(btns[i].innerText.trim()==\'##SC_GOTO_REPORT##\'){{btns[i].click();break;}}}}}})()" ' +
-                'style="font-size:0.75rem;padding:3px 10px;border-radius:6px;border:1.5px solid #4C72FF;background:white;color:#4C72FF;cursor:pointer;white-space:nowrap;font-weight:600">📋 리포트</button>' +
-                '</div>' +
                 '</div>' +
                 '<div style="background:#e9ecef;border-radius:4px;height:7px">' +
                 '<div id="sc-credit-fill" style="background:' + color + ';width:0%;height:100%;border-radius:4px;transition:width 0.45s ease"></div>' +
+                '</div>' +
+                '</div>' +
+                '<div style="width:1px;height:36px;background:#dee2e6;flex-shrink:0"></div>' +
+                '<button id="sc-report-nav-btn" style="font-size:0.78rem;padding:5px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#FF4B4B,#d93025);color:white;cursor:pointer;white-space:nowrap;font-weight:700;box-shadow:0 2px 8px rgba(255,75,75,0.45);flex-shrink:0">📋 리포트 보기</button>' +
                 '</div>';
             doc.body.appendChild(bar);
             setTimeout(function() {{
@@ -345,6 +341,36 @@ if st.session_state.view == "plan":
         }}
     }})();
     </script>""", height=1)
+
+    # 고정바 리포트 버튼 리스너
+    # - polling: bar보다 먼저 실행돼도 100ms마다 재시도
+    # - 텍스트로만 탐색: data-testid="stBaseButton-primary"는 상단 '학기별 이수계획'도 걸림
+    components.html("""<script>
+(function() {
+    function attach() {
+        var rb = window.parent.document.getElementById('sc-report-nav-btn');
+        if (!rb) { setTimeout(attach, 100); return; }
+        if (rb._scFn) rb.removeEventListener('click', rb._scFn);
+        rb._scFn = function() {
+            var p = window.parent.document;
+            var all = p.querySelectorAll('button');
+            var f = null;
+            for (var i = 0; i < all.length; i++) {
+                var t = all[i].textContent || '';
+                if (t.indexOf('졸업진단') > -1 || t.indexOf('입력 완료') > -1) {
+                    f = all[i]; break;
+                }
+            }
+            if (f) {
+                f.scrollIntoView({behavior: 'smooth', block: 'center'});
+                setTimeout(function() { f.click(); }, 200);
+            }
+        };
+        rb.addEventListener('click', rb._scFn);
+    }
+    attach();
+})();
+</script>""", height=1)
 
     # 해당 과정의 필수과목 코드 집합 — 계절학기 선택과목에서 중복 제외
     req_set = {c["code"] for c in MASTER["required"][program]}
@@ -458,8 +484,10 @@ if st.session_state.view == "plan":
                     if tr_label not in buckets:
                         continue
                     cnt_taken = sum(1 for c in buckets[tr_label] if _here(c))
-                    hdr = f"**{tr_label}** ({cnt_taken}/{len(buckets[tr_label])}과목)"
-                    st.markdown(hdr)
+                    st.markdown(
+                        f'<div class="track-hd">{tr_label} · {cnt_taken}/{len(buckets[tr_label])}과목</div>',
+                        unsafe_allow_html=True,
+                    )
 
                     for c in buckets[tr_label]:
                         code = c["code"]
@@ -485,27 +513,25 @@ if st.session_state.view == "plan":
                         locked = once_locked or cap_locked
                         chk_key = f"elec_s{sem_idx}_{code}"
 
-                        if cap_locked:
-                            # 학점 상한 초과 → 비활성 표시
-                            st.markdown(
-                                f'<div class="course-blocked">🚫 {c["name"]}  ·  {c["credits"]}학점</div>',
-                                unsafe_allow_html=True,
-                            )
+                        type_tag = ""
+                        if c.get("is_english") and c.get("is_leadership"):
+                            type_tag = "  (영어/리더십)"
+                        elif c.get("is_english"):
+                            type_tag = "  (영어강의)"
+                        elif c.get("is_leadership"):
+                            type_tag = "  (리더십개발)"
+
+                        if locked:
+                            # cap_locked 또는 once_locked → disabled 체크박스 + 🔒
+                            lock_tag = "  🔒"
+                            chk_label = f"**{c['name']}**  ·  {c['credits']}학점{type_tag}{lock_tag}"
+                            st.checkbox(chk_label, value=_here(c) and not cap_locked,
+                                        key=chk_key, disabled=True)
                             checked = False
                         else:
-                            # 라벨에 과목명 + 학점 + 유형 표시 (항상 같은 줄)
-                            type_tag = ""
-                            if c.get("is_english") and c.get("is_leadership"):
-                                type_tag = "  (영어/리더십)"
-                            elif c.get("is_english"):
-                                type_tag = "  (영어강의)"
-                            elif c.get("is_leadership"):
-                                type_tag = "  (리더십개발)"
-                            lock_tag = "  🔒" if once_locked else ""
-                            chk_label = f"**{c['name']}**  ·  {c['credits']}학점{type_tag}{lock_tag}"
+                            chk_label = f"**{c['name']}**  ·  {c['credits']}학점{type_tag}"
                             checked = st.checkbox(
-                                chk_label, value=_here(c), key=chk_key,
-                                disabled=once_locked,
+                                chk_label, value=_here(c), key=chk_key, disabled=False,
                             )
 
                         if locked:
@@ -552,7 +578,7 @@ if st.session_state.view == "report":
     var b = window.parent.document.getElementById('sc-credit-bar');
     if (b) b.remove();
     </script>""", height=1)
-    st.markdown(f"### 📊 {program} 졸업요건 진단")
+    st.markdown("### 📊 졸업요건 진단")
 
     total_r   = sum(v["credits"] for v in taken.values())
     rq_list_r = MASTER["required"][program]
@@ -560,11 +586,60 @@ if st.session_state.view == "report":
     english_r = sum(v["credits"] for v in taken.values() if v.get("is_english"))
     ld_r      = sum(v["credits"] for v in taken.values() if v.get("is_leadership"))
 
+    _grad_ok = (
+        total_r   >= rules["total_credits"]
+        and len(missing_r) == 0
+        and english_r >= rules["english_credits"]
+        and ld_r      >= rules["leadership_credits"]
+    )
+    if _grad_ok:
+        st.markdown(
+            '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);'
+            'border:2px solid #2e7d32;border-radius:12px;padding:16px 20px;margin:8px 0 16px">'
+            '<div style="font-size:1.25rem;font-weight:800;color:#1b5e20">🎓 졸업 요건 충족!</div>'
+            '<div style="font-size:0.88rem;color:#2e7d32;margin-top:4px">모든 졸업 요건을 충족했습니다.</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        _issues = []
+        if total_r   < rules["total_credits"]:
+            _issues.append(f"학점 {rules['total_credits']-total_r:g}학점 부족")
+        if missing_r:
+            _issues.append(f"필수과목 {len(missing_r)}개 미이수")
+        if english_r < rules["english_credits"]:
+            _issues.append(f"영어강의 {rules['english_credits']-english_r:g}학점 부족")
+        if ld_r      < rules["leadership_credits"]:
+            _issues.append(f"리더십개발 {rules['leadership_credits']-ld_r:g}학점 부족")
+        st.markdown(
+            '<div style="background:#fdf0f0;border:2px solid #c0392b;border-radius:12px;'
+            f'padding:16px 20px;margin:8px 0 16px">'
+            '<div style="font-size:1.1rem;font-weight:800;color:#c0392b">❌ 졸업 요건 미충족</div>'
+            f'<div style="font-size:0.86rem;color:#888;margin-top:4px">미충족: {" · ".join(_issues)}</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    def _mcard(col, label, value, sub, ok):
+        vc  = "#1a7a1a" if ok else "#c0392b"
+        bgs = "#f0faf0" if ok else "#fdf0f0"
+        col.markdown(
+            f'<div style="background:#f8f9fa;border-radius:8px;padding:12px 8px;text-align:center">'
+            f'<div style="font-size:0.78rem;color:#666;margin-bottom:4px">{label}</div>'
+            f'<div style="font-size:1.5rem;font-weight:800;color:#111;line-height:1.1">{value}</div>'
+            f'<div style="display:inline-block;background:{bgs};border-radius:5px;'
+            f'padding:3px 10px;font-size:0.76rem;font-weight:600;color:{vc};margin-top:6px">{sub}</div>'
+            f'</div>', unsafe_allow_html=True)
+
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("총 이수학점",  f"{total_r:g}",           f"목표 {rules['total_credits']:g}학점")
-    m2.metric("필수 미이수",  f"{len(missing_r)}과목",  f"{len(rq_list_r)-len(missing_r)}/{len(rq_list_r)} 완료")
-    m3.metric("영어강의",     f"{english_r:g}학점",     f"기준 {rules['english_credits']:g}학점")
-    m4.metric("리더십개발",   f"{ld_r:g}학점",          f"기준 {rules['leadership_credits']:g}학점")
+    _mcard(m1, "총 이수학점",  f"{total_r:g}학점",
+           f"목표 {rules['total_credits']:g}학점",   total_r  >= rules["total_credits"])
+    _mcard(m2, "필수 미이수",  f"{len(missing_r)}과목",
+           f"{len(rq_list_r)-len(missing_r)}/{len(rq_list_r)} 완료", len(missing_r) == 0)
+    _mcard(m3, "영어강의",     f"{english_r:g}학점",
+           f"기준 {rules['english_credits']:g}학점",  english_r >= rules["english_credits"])
+    _mcard(m4, "리더십개발",   f"{ld_r:g}학점",
+           f"기준 {rules['leadership_credits']:g}학점", ld_r >= rules["leadership_credits"])
 
     st.markdown("---")
 
@@ -572,7 +647,7 @@ if st.session_state.view == "report":
         color = "#1a7a1a" if ok else "#c0392b"
         bg    = "#f0faf0" if ok else "#fdf0f0"
         icon  = "✅" if ok else "❌"
-        detail_html = (f'<span style="color:#666;font-size:0.85rem;margin-left:8px">{detail}</span>'
+        detail_html = (f'<div style="color:#888;font-size:0.82rem;margin-top:5px;padding-left:20px">{detail}</div>'
                        if detail else "")
         st.markdown(
             f'<div style="background:{bg};border-radius:8px;padding:10px 14px;margin:5px 0">'
@@ -602,9 +677,18 @@ if st.session_state.view == "report":
         for tr in ["마케팅", "매니지먼트", "재무"]:
             cr = conc_r.get(tr, 0.0)
             ok = cr >= rules["concentration_credits"]
-            label = f"{'🏆 ' if ok else ''}{tr}　{cr:g} / {rules['concentration_credits']:g}학점"
-            st.markdown(f'<div class="prog-label">{label}</div>', unsafe_allow_html=True)
-            st.progress(min(int(cr / rules["concentration_credits"] * 100), 100))
+            if ok:
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);'
+                    f'border:2px solid #2e7d32;border-radius:10px;padding:12px 16px;margin:6px 0">'
+                    f'<div style="font-weight:800;font-size:1rem;color:#1b5e20">🏆 {tr} 심화과정 인정</div>'
+                    f'<div style="font-size:0.85rem;color:#2e7d32;margin-top:3px">'
+                    f'{cr:g} / {rules["concentration_credits"]:g}학점 달성</div></div>',
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="prog-label">{tr}　{cr:g} / {rules["concentration_credits"]:g}학점</div>',
+                            unsafe_allow_html=True)
+                st.progress(min(int(cr / rules["concentration_credits"] * 100), 100))
     else:
         idx = MASTER["concentration_index"]["FMBA"]
         sums_r = {"금융공학": 0.0, "자산운용/투자은행": 0.0, "공통트랙": 0.0}
@@ -624,27 +708,38 @@ if st.session_state.view == "report":
              achieved.append(f"자산운용/투자은행 + 공통트랙 ({ib+common:g}학점)")
         if achieved:
             for a in achieved:
-                st.success(f"🏆 심화과정 인정: {a}")
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);'
+                    f'border:2px solid #2e7d32;border-radius:10px;padding:12px 16px;margin:6px 0">'
+                    f'<div style="font-weight:800;font-size:1rem;color:#1b5e20">🏆 심화과정 인정</div>'
+                    f'<div style="font-size:0.85rem;color:#2e7d32;margin-top:3px">{a}</div></div>',
+                    unsafe_allow_html=True)
         else:
             st.info("아직 인정 기준을 충족한 조합이 없습니다.")
         st.caption("📖 " + MASTER["fmba_concentration_note"])
 
     st.markdown("---")
-    st.markdown(f"### 📋 담은 과목 ({len(taken)}과목 · {total_r:g}학점)")
-    if taken:
-        st.dataframe(
-            [{"학정번호": code, "과목명": v["name"], "학점": v["credits"],
-              "종별": v.get("kind",""), "영어": "✓" if v.get("is_english") else "",
-              "리더십": "✓" if v.get("is_leadership") else ""}
-             for code, v in taken.items()],
-            use_container_width=True, hide_index=True,
-        )
-    else:
-        st.info("아직 담은 과목이 없습니다. 학기별 이수계획 탭에서 과목을 선택하세요.")
+    with st.expander(f"📋 담은 과목 전체 보기  ({len(taken)}과목 · {total_r:g}학점)"):
+        if taken:
+            st.dataframe(
+                [{"학정번호": code, "과목명": v["name"], "학점": v["credits"],
+                  "종별": v.get("kind",""), "영어": "✓" if v.get("is_english") else "",
+                  "리더십": "✓" if v.get("is_leadership") else ""}
+                 for code, v in taken.items()],
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.info("아직 담은 과목이 없습니다. 학기별 이수계획에서 과목을 선택하세요.")
 
     st.markdown("---")
-    if st.button("🔄 이수과목 다시 선택하기", use_container_width=True):
-        st.session_state.taken = {}
-        st.session_state.view = "plan"
-        st.session_state.scroll_top = True
-        st.rerun()
+    _bc1, _bc2 = st.columns([3, 1])
+    with _bc1:
+        if st.button("← 이수계획으로 돌아가기", use_container_width=True, type="primary"):
+            st.session_state.view = "plan"
+            st.rerun()
+    with _bc2:
+        if st.button("🗑️ 전체 초기화", use_container_width=True):
+            st.session_state.taken = {}
+            st.session_state.view = "plan"
+            st.session_state.scroll_top = True
+            st.rerun()
