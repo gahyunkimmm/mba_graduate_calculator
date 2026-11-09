@@ -303,13 +303,17 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 
 /* ════════════════ PRINT / PDF (paper report) ════════════════ */
 #print-doc{display:none}
-@page{size:A4;margin:18mm 16mm 16mm}
+@page{size:A4;margin:0}
 @media print{
   html,body{background:#fff!important}
   body>*:not(#print-doc){display:none!important}
   #print-doc{display:block;color:#000;
     font-family:"Noto Serif KR","Nanum Myeongjo","AppleMyungjo","Batang","바탕",serif;
     font-size:10pt;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #print-doc{padding:0 18mm!important}
+  .pd-wrap{width:100%;border-collapse:collapse}
+  .pd-wrap>thead>tr>td,.pd-wrap>tfoot>tr>td,.pd-wrap>tbody>tr>td{padding:0;border:none}
+  .pd-sp-top{height:20mm}.pd-sp-bot{height:18mm}
   .pd-head{text-align:center;border-bottom:2px solid #000;padding-bottom:10pt;margin-bottom:4pt}
   .pd-inst{font-size:9pt;letter-spacing:2pt}
   .pd-title{font-size:18pt;font-weight:700;letter-spacing:3pt;margin:6pt 0 2pt}
@@ -1027,7 +1031,7 @@ function buildPrintDoc(){
   h+=`</tbody></table>`;
 
   h+=`<div class="pd-foot"><span>본 보고서는 개인 시뮬레이션 결과로, 공식 졸업사정은 학사지원팀 확인이 필요합니다.</span><span>${ds}</span></div>`;
-  document.getElementById('print-doc').innerHTML=h;
+  document.getElementById('print-doc').innerHTML=`<table class="pd-wrap"><thead><tr><td><div class="pd-sp-top"></div></td></tr></thead><tfoot><tr><td><div class="pd-sp-bot"></div></td></tr></tfoot><tbody><tr><td>${h}</td></tr></tbody></table>`;
 }
 function printReport(){ buildPrintDoc(); window.print(); }
 window.addEventListener('beforeprint', buildPrintDoc);
