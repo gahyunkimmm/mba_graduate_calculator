@@ -301,18 +301,35 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 .sem-bulk-unc{background:#F9FAFB;color:var(--muted);border:1px solid var(--border)}
 .sem-bulk-unc:hover{background:var(--red-lt);color:var(--red);border-color:var(--red)}
 
-/* ════════════════ PRINT / PDF ════════════════ */
+/* ════════════════ PRINT / PDF (paper report) ════════════════ */
+#print-doc{display:none}
+@page{size:A4;margin:18mm 16mm 16mm}
 @media print{
-  #topbar,#btn-share,#btn-report,.btn-row,.btn-full,
-  #shared-notice,.sem-bulk,.count-as,#toast{display:none!important}
-  body{background:#fff;font-size:12px}
-  #app{padding:10px!important}
-  details{box-shadow:none!important;border:1px solid #ccc!important;page-break-inside:avoid}
-  details:not([open]){display:none}
-  .banner-ok,.banner-ng{padding:8px 12px}
-  .mcards{grid-template-columns:repeat(4,1fr)!important}
-  a{text-decoration:none}
-  h2,h3{page-break-after:avoid}
+  html,body{background:#fff!important}
+  body>*:not(#print-doc){display:none!important}
+  #print-doc{display:block;color:#000;
+    font-family:"Noto Serif KR","Nanum Myeongjo","AppleMyungjo","Batang","바탕",serif;
+    font-size:10pt;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pd-head{text-align:center;border-bottom:2px solid #000;padding-bottom:10pt;margin-bottom:4pt}
+  .pd-inst{font-size:9pt;letter-spacing:2pt}
+  .pd-title{font-size:18pt;font-weight:700;letter-spacing:3pt;margin:6pt 0 2pt}
+  .pd-sub{font-size:9pt;color:#333}
+  .pd-meta{width:100%;border-collapse:collapse;margin:0 0 16pt;border-bottom:1px solid #000;font-size:9.5pt}
+  .pd-meta td{padding:5pt 6pt;border:none}
+  .pd-meta td.k{width:16%;font-weight:700}
+  .pd-verdict{border:1.5px solid #000;padding:9pt 12pt;margin:0 0 18pt;font-size:10.5pt}
+  .pd-verdict b{font-size:12pt}
+  .pd-h{font-size:11.5pt;font-weight:700;margin:18pt 0 6pt;padding-bottom:3pt;border-bottom:1px solid #000;page-break-after:avoid}
+  .pd-t{width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:4pt}
+  .pd-t th{border-top:1.5px solid #000;border-bottom:1px solid #000;padding:4pt 5pt;font-weight:700;text-align:left;background:none}
+  .pd-t td{border-bottom:.5px solid #999;padding:3.5pt 5pt;vertical-align:top;background:none!important;color:#000}
+  .pd-t tr:last-child td{border-bottom:1.5px solid #000}
+  .pd-t .c{text-align:center}.pd-t .r{text-align:right}
+  .pd-t tr.sem td{font-weight:700;border-bottom:.5px solid #000;padding-top:7pt}
+  .pd-t tr.sum td{font-weight:700}
+  .pd-t tr{page-break-inside:avoid}
+  .pd-note{font-size:8.5pt;color:#333;margin-top:4pt}
+  .pd-foot{margin-top:24pt;padding-top:6pt;border-top:1px solid #000;font-size:8pt;color:#333;display:flex;justify-content:space-between;gap:12pt}
 }
 
 </style>
@@ -379,6 +396,8 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
   <!-- ── 졸업진단 리포트 뷰 ── -->
   <div id="v-report" class="hidden"></div>
 </div>
+
+<div id="print-doc"></div>
 
 <!-- Toast -->
 <div id="toast">🔗 링크가 복사됐습니다!</div>
@@ -918,11 +937,100 @@ function renderReport(){
 <button class="btn btn-g" onclick="shareURL()">🔗 이 플랜 링크 공유하기</button>
 </div>
 <div class="btn-full" style="margin-top:8px">
-<button class="btn btn-g" onclick="window.print()">🖨️ PDF로 저장하기</button>
+<button class="btn btn-g" onclick="printReport()">🖨️ PDF로 저장하기</button>
 </div>`;
 
   document.getElementById('v-report').innerHTML=h;
 }
+
+
+// ═══════════════════════════════════════════════════════
+//  PAPER REPORT (PDF)
+// ═══════════════════════════════════════════════════════
+const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function buildPrintDoc(){
+  const rules=MASTER.graduation_rules[prog];
+  const {tot,eng,ld,miss,rq}=stats();
+  const cfg=SEM_CFG[prog];
+  const reqMap=Object.fromEntries(rq.map(c=>[c.code,c]));
+  const reqTarget=rq.reduce((a,c)=>a+c.credits,0);
+  let reqDone=0; for(const c of rq) if(taken[c.code]) reqDone+=c.credits;
+  const ok=tot>=rules.total_credits&&!miss.length&&eng>=rules.english_credits&&ld>=rules.leadership_credits;
+  const J=b=>b?'충족':'<b>미충족</b>';
+  const d=new Date(), ds=`${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}.`;
+
+  // 학기별 그룹
+  const groups=cfg.map(()=>[]), etc=[];
+  for(const [code,v] of Object.entries(taken)){
+    let si=-1;
+    if(reqMap[code]) si=cfg.findIndex(x=>x.rk.includes(reqMap[code].semester));
+    else if(typeof v.sem_idx==='number') si=v.sem_idx;
+    (si>=0&&groups[si]?groups[si]:etc).push([code,v]);
+  }
+
+  let h=`<div class="pd-head">
+<div class="pd-inst">연세대학교 경영전문대학원</div>
+<div class="pd-title">졸업이수 진단 보고서</div>
+<div class="pd-sub">Graduation Requirement Audit · ${prog}</div>
+</div>
+<table class="pd-meta"><tr>
+<td class="k">과정</td><td>${prog}</td>
+<td class="k">작성일</td><td>${ds}</td>
+<td class="k">이수과목</td><td>${Object.keys(taken).length}과목</td>
+</tr></table>
+<div class="pd-verdict">종합 판정 &nbsp; <b>${ok?'졸업 요건 충족':'졸업 요건 미충족'}</b>
+&nbsp;·&nbsp; 총 ${fc(tot)}학점 / 기준 ${rules.total_credits}학점</div>
+
+<div class="pd-h">1. 졸업 요건 검토</div>
+<table class="pd-t"><thead><tr><th>요건</th><th class="r">기준</th><th class="r">이수</th><th class="r">잔여</th><th class="c">판정</th></tr></thead><tbody>
+<tr><td>총 이수학점</td><td class="r">${rules.total_credits}</td><td class="r">${fc(tot)}</td><td class="r">${fc(Math.max(0,rules.total_credits-tot))}</td><td class="c">${J(tot>=rules.total_credits)}</td></tr>
+<tr><td>전공필수 과목</td><td class="r">${rq.length}과목 (${fc(reqTarget)})</td><td class="r">${rq.length-miss.length}과목 (${fc(reqDone)})</td><td class="r">${miss.length}과목</td><td class="c">${J(!miss.length)}</td></tr>
+<tr><td>선택 이수학점</td><td class="r">${fc(rules.total_credits-reqTarget)}</td><td class="r">${fc(tot-reqDone)}</td><td class="r">${fc(Math.max(0,rules.total_credits-reqTarget-(tot-reqDone)))}</td><td class="c">${J(tot-reqDone>=rules.total_credits-reqTarget)}</td></tr>
+<tr><td>영어강의</td><td class="r">${rules.english_credits}</td><td class="r">${fc(eng)}</td><td class="r">${fc(Math.max(0,rules.english_credits-eng))}</td><td class="c">${J(eng>=rules.english_credits)}</td></tr>
+<tr><td>리더십개발</td><td class="r">${rules.leadership_credits}</td><td class="r">${fc(ld)}</td><td class="r">${fc(Math.max(0,rules.leadership_credits-ld))}</td><td class="c">${J(ld>=rules.leadership_credits)}</td></tr>
+</tbody></table>`;
+  if(miss.length) h+=`<div class="pd-note">미이수 전공필수: ${miss.map(c=>esc(c.name)+' ('+c.semester+')').join(', ')}</div>`;
+
+  // 심화
+  const ci=MASTER.concentration_index[prog], cc=rules.concentration_credits;
+  const sums={};
+  for(const [code,v] of Object.entries(taken)) for(const tr of (ci[code]||[])) sums[tr]=(sums[tr]||0)+v.credits;
+  h+=`<div class="pd-h">2. 심화과정 (Concentration)</div><table class="pd-t"><thead><tr><th>트랙</th><th class="r">기준</th><th class="r">이수</th><th class="c">판정</th></tr></thead><tbody>`;
+  if(prog==='CMBA'){
+    for(const tr of ['마케팅','매니지먼트','재무']){const v=sums[tr]||0;h+=`<tr><td>${tr}</td><td class="r">${cc}</td><td class="r">${fc(v)}</td><td class="c">${v>=cc?'인정':'—'}</td></tr>`;}
+    h+=`</tbody></table>`;
+  } else {
+    const fe=sums['금융공학']||0, ib=sums['자산운용/투자은행']||0, cm=sums['공통트랙']||0;
+    const feOk=fe>=cc||(fe>0&&fe+cm>=cc), ibOk=ib>0&&ib+cm>=cc;
+    h+=`<tr><td>금융공학 (+공통트랙)</td><td class="r">${cc}</td><td class="r">${fc(fe)} (+${fc(cm)})</td><td class="c">${feOk?'인정':'—'}</td></tr>
+<tr><td>자산운용/투자은행 (+공통트랙)</td><td class="r">${cc}</td><td class="r">${fc(ib)} (+${fc(cm)})</td><td class="c">${ibOk?'인정':'—'}</td></tr></tbody></table>
+<div class="pd-note">${esc(MASTER.fmba_concentration_note)}</div>`;
+  }
+
+  // 학기별 내역
+  h+=`<div class="pd-h">3. 학기별 이수 내역</div><table class="pd-t"><thead><tr><th style="width:15%">학정번호</th><th>과목명</th><th class="c" style="width:10%">구분</th><th class="r" style="width:8%">학점</th><th style="width:20%">비고</th></tr></thead><tbody>`;
+  const row=([code,v])=>{
+    const note=[v.is_english?'영어강의':'',v.is_leadership?'리더십개발':'',(prog==='CMBA'?v.cmba_track:v.fmba_track)||''].filter(Boolean).join(', ');
+    const code2=/^(LDR|CKJ|GST)/.test(code)?'—':code;
+    return `<tr><td>${code2}</td><td>${esc(v.name)}</td><td class="c">${reqMap[code]?'필수':'선택'}</td><td class="r">${fc(v.credits)}</td><td>${note}</td></tr>`;
+  };
+  let any=false;
+  groups.forEach((g,i)=>{ if(!g.length) return; any=true;
+    const sub=g.reduce((a,[,v])=>a+v.credits,0);
+    h+=`<tr class="sem"><td colspan="3">${cfg[i].label}</td><td class="r">${fc(sub)}</td><td></td></tr>`;
+    g.forEach(x=>h+=row(x));
+  });
+  if(etc.length){any=true;h+=`<tr class="sem"><td colspan="5">기타</td></tr>`;etc.forEach(x=>h+=row(x));}
+  if(!any) h+=`<tr><td colspan="5" class="c">이수 내역 없음</td></tr>`;
+  else h+=`<tr class="sum"><td colspan="3">합계</td><td class="r">${fc(tot)}</td><td></td></tr>`;
+  h+=`</tbody></table>`;
+
+  h+=`<div class="pd-foot"><span>본 보고서는 개인 시뮬레이션 결과로, 공식 졸업사정은 학사지원팀 확인이 필요합니다.</span><span>${ds}</span></div>`;
+  document.getElementById('print-doc').innerHTML=h;
+}
+function printReport(){ buildPrintDoc(); window.print(); }
+window.addEventListener('beforeprint', buildPrintDoc);
 
 // ═══════════════════════════════════════════════════════
 //  RESET
