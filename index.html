@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>연세 CFMBA 졸업이수 시뮬레이터</title>
+<meta name="description" content="학기별 필수·선택 이수학점을 체크하고 졸업 가능 여부를 확인하세요. 나만의 이수계획을 링크로 공유할 수 있습니다.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://gahyunkimmm.github.io/mba_graduate_calculator/">
+<meta property="og:title" content="연세 CFMBA 졸업이수 시뮬레이터">
+<meta property="og:description" content="학기별 필수·선택 이수학점을 체크하고 나만의 이수계획을 공유해보세요.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="연세 CFMBA 졸업이수 시뮬레이터">
+<meta name="twitter:description" content="학기별 필수·선택 이수학점을 체크하고 나만의 이수계획을 공유해보세요.">
 <style>
 :root{
   --blue:#2563EB;--blue-lt:#EFF6FF;--blue-dk:#1D4ED8;
@@ -273,6 +281,37 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
   #tb-cr{display:none}
   .mcards{gap:5px}
 }
+
+/* ════════════════ CREDIT BREAKDOWN ════════════════ */
+#tb-cr-sub{display:flex;gap:6px;margin-top:3px;font-size:10px;color:var(--muted);align-items:center}
+#tb-cr-sub span{white-space:nowrap}
+.cr-sub-ok{color:var(--green)!important;font-weight:700}
+
+/* ════════════════ SEM BULK BUTTONS ════════════════ */
+.sem-bulk{display:flex;gap:5px;margin:8px 0 4px}
+.sem-bulk-btn{
+  font-size:10px;padding:3px 9px;border-radius:12px;border:none;
+  cursor:pointer;font-weight:600;transition:all .15s;
+}
+.sem-bulk-chk{background:#EFF6FF;color:var(--blue)}
+.sem-bulk-chk:hover{background:var(--blue);color:#fff}
+.sem-bulk-unc{background:#F9FAFB;color:var(--muted);border:1px solid var(--border)}
+.sem-bulk-unc:hover{background:var(--red-lt);color:var(--red);border-color:var(--red)}
+
+/* ════════════════ PRINT / PDF ════════════════ */
+@media print{
+  #topbar,#btn-share,#btn-report,.btn-row,.btn-full,
+  #shared-notice,.sem-bulk,.count-as,#toast{display:none!important}
+  body{background:#fff;font-size:12px}
+  #app{padding:10px!important}
+  details{box-shadow:none!important;border:1px solid #ccc!important;page-break-inside:avoid}
+  details:not([open]){display:none}
+  .banner-ok,.banner-ng{padding:8px 12px}
+  .mcards{grid-template-columns:repeat(4,1fr)!important}
+  a{text-decoration:none}
+  h2,h3{page-break-after:avoid}
+}
+
 </style>
 </head>
 <body>
@@ -289,10 +328,15 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
     </div>
     <div id="tb-cr">
       <div id="tb-cr-top">
-        <span id="tb-cr-lbl">이수학점</span>
+        <span id="tb-cr-lbl">총 이수학점</span>
         <span id="tb-cr-val">0 / 45</span>
       </div>
       <div id="tb-track"><div id="tb-fill"></div></div>
+      <div id="tb-cr-sub">
+        <span id="tb-req-txt">필수 0학점</span>
+        <span style="color:var(--border)">·</span>
+        <span id="tb-elec-txt">선택 0학점</span>
+      </div>
     </div>
     <div id="tb-actions">
       <button class="tb-btn" id="btn-share" onclick="shareURL()">🔗 공유</button>
@@ -481,6 +525,24 @@ function updateBar(){
   document.getElementById('tb-cr-val').style.color = done ? 'var(--green)' : 'var(--blue)';
   document.getElementById('tb-fill').style.width  = pct+'%';
   document.getElementById('tb-fill').style.background = color;
+
+  // 필수 / 선택 breakdown
+  const reqCodes = new Set(MASTER.required[prog].map(c=>c.code));
+  const reqTarget = MASTER.required[prog].reduce((s,c)=>s+c.credits,0);
+  const elecTarget = rules.total_credits - reqTarget;
+  let reqDone=0, elecDone=0;
+  for(const [code,v] of Object.entries(taken)){
+    if(reqCodes.has(code)) reqDone+=v.credits;
+    else elecDone+=v.credits;
+  }
+  const reqEl  = document.getElementById('tb-req-txt');
+  const elecEl = document.getElementById('tb-elec-txt');
+  if(reqEl){
+    reqEl.textContent  = `필수 ${fc(reqDone)}/${fc(reqTarget)}`;
+    reqEl.className    = reqDone>=reqTarget ? 'cr-sub-ok' : '';
+    elecEl.textContent = `선택 ${fc(elecDone)}/${fc(elecTarget)}`;
+    elecEl.className   = elecDone>=elecTarget ? 'cr-sub-ok' : '';
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -508,6 +570,22 @@ function setProg(p){
     document.getElementById('plan-pb-'+x).classList.toggle('on',x===p);
   });
   renderPlan();
+}
+
+// ═══════════════════════════════════════════════════════
+//  SEM BULK TOGGLE
+// ═══════════════════════════════════════════════════════
+function semCheckAll(si, semReqCodes, check){
+  for(const code of semReqCodes){
+    const info = MASTER.required[prog].find(c=>c.code===code);
+    if(!info) continue;
+    if(check){
+      taken[info.code]={name:info.name,credits:info.credits,kind:'필수',is_english:false,is_leadership:false};
+    } else {
+      if(taken[info.code]&&taken[info.code].kind==='필수') delete taken[info.code];
+    }
+  }
+  save(); renderPlan();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -574,8 +652,14 @@ function renderPlan(){
   </div>
 </summary><div class="sem-body">`;
 
-    // 필수
+    // 필수 bulk buttons
     if(semReq.length){
+      const reqCodesJson = JSON.stringify(semReq.map(c=>c.code));
+      const allChecked = semReq.every(c=>!!taken[c.code]);
+      h+=`<div class="sem-bulk">
+<button class="sem-bulk-btn sem-bulk-chk" onclick='semCheckAll(${si},${reqCodesJson},true)'>✅ 필수 전체 체크</button>
+<button class="sem-bulk-btn sem-bulk-unc" onclick='semCheckAll(${si},${reqCodesJson},false)'>↩ 필수 전체 해제</button>
+</div>`;
       h+=`<div class="sub-hd">📌 필수과목</div>`;
       for(const c of semReq){
         const id=`req_${c.code}`;
@@ -829,6 +913,9 @@ function renderReport(){
 </div>
 <div class="btn-full" style="margin-top:0">
 <button class="btn btn-g" onclick="shareURL()">🔗 이 플랜 링크 공유하기</button>
+</div>
+<div class="btn-full" style="margin-top:8px">
+<button class="btn btn-g" onclick="window.print()">🖨️ PDF로 저장하기</button>
 </div>`;
 
   document.getElementById('v-report').innerHTML=h;
